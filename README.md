@@ -3,9 +3,9 @@
 - - -
 ## _**Contributors**_
 - Project Director: Prof. Seokho Chi, _Ph.D._ (shchi@snu.ac.kr, https://cm.snu.ac.kr/)
-- Main Developer: Dr. Seonghyeon Boris Moon (blank54@snu.ac.kr, https://github.com/blank54/)
+- Main Developer: Dr. Seonghyeon Boris Moon, _Ph.D._ (blank54@snu.ac.kr, https://github.com/blank54/)
 - Sub Developer: Gitaek Lee (lgt0427@snu.ac.kr)
-
+  
 ## _**Related Works**_
 ### Journal Papers
 - **Moon, S.**, Lee, G., Chi, S.\*, and Oh, H. (2021). "Automated Construction Specification Review with Named Entity Recognition Using Natural Language Processing." _Journal of Construction Engineering and Management_, 147(1), 04020147.
