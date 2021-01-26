@@ -24,8 +24,8 @@ with tqdm(total=len(flist)) as pbar:
         sentences.extend(BuildCorpus().section2sentence(fpath_section=fpath)) ## TODO
         pbar.update(1)
 
-fdir_corpus = os.path.join(cfg['root'], cfg['fdir_corpus'])
+fdir_corpus = os.path.join(cfg['root'], cfg['fdir_corpus'], 'sentence')
 os.makedirs(fdir_corpus, exist_ok=True)
-fname_corpus = 'sentences.pk'
+fname_corpus = 'sentences_original.pk'
 with open(os.path.join(fdir_corpus, fname_corpus), 'wb') as f:
     pk.dump(sentences, f)
