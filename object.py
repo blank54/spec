@@ -5,7 +5,20 @@
 import os
 
 
-class Spec:
+class Doc:
+    fpath = ''
+
+    tag = ''
+    text = ''
+
+    token = ''
+    stop = ''
+    stem = ''
+    lemma = ''
+    ngram = ''
+
+
+class Spec(Doc):
     def __init__(self, tag, text, **kwargs):
         self.tag = tag
         self.text = text
@@ -18,12 +31,23 @@ class Spec:
         return len(self.sents)
 
 
-class Sentence:
+class Paragraph(Doc):
+    def __init__(self, tag, text, **kwargs):
+        self.tag = tag
+        self.text = text
+
+    def __str__(self):
+        return self.text
+
+    def __len__(self):
+        return len(self.text)
+
+
+class Sentence(Doc):
     def __init__(self, tag, text, **kwargs):
         self.tag = tag
         self.text = text
         self.pos = []
-        self.chunk = []
 
     def __str__(self):
         return self.text
@@ -38,8 +62,25 @@ class Word2VecModel:
         self.model = model
         self.parameters = parameters
 
-    def __len__(self):
-        return len(self.docs)
+    def train(self, **kwargs):
+        self.model.build_vocab(sentences=self.docs)
+        self.model.train(sentences=self.docs,
+                         total_examples=self.model.corpus_count,
+                         epochs=self.model.epochs)
 
-    def __call__(self):
-        return self.model
+
+    def update(self, new_docs, min_count=0):
+        self.model.min_count = min_count
+        self.model.build_vocab(sentences=new_docs, update=True)
+        self.model.train(sentences=new_docs, total_examples=self.model.corpus_count, epochs=self.model.iter)
+
+
+class WordFlow:
+    def __init__(self, word_from, word_to, similarity, score):
+        self.word_from = word_from
+        self.word_to = word_to
+        self.similarity = similarity
+        self.score = score
+
+    def __str__(self):
+        return '{} -> {} ({:.03f})'.format(self.word_from, self.word_to, self.score)

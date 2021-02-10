@@ -4,6 +4,7 @@
 # Configuration
 import os
 import sys
+import pickle as pk
 from time import time
 
 from config import Config
@@ -12,69 +13,141 @@ with open('/data/blank54/workspace/project/spec/spec.cfg', 'r') as f:
 
 sys.path.append(cfg['root'])
 from analysis import *
-corpus = Corpus()
+read = Read()
+write = Write()
 utils = Utils()
-stat = Stat()
-
-
-## Data Import
-fdir_corpus = os.path.join(cfg['root'], cfg['fdir_corpus'])
-fpath_sents = os.path.join(fdir_corpus, 'manual/sentence', 'sentences_chunk.pk')
-sents = corpus.load_single(fpath=fpath_sents)
+visualizer = Visualizer()
 
 
 ## Word Embedding
-for size in [50, 100, 200]:
-    for window in [1, 2, 3, 5, 10, 20]:
-        for iter_num in [100, 200, 500, 1000]:
-            for min_count in [0, 3, 5, 10, 50, 100]:
-                for negative in [0, 1, 3, 5, 10]:
-                    fdir_model = os.path.join(cfg['root'], cfg['fdir_model'])
-                    parameters = {
-                        'size': size,
-                        'window': window,
-                        'iter': iter_num,
-                        'min_count': min_count,
-                        'workers': 4,
-                        'sg': 1,
-                        'hs': 1,
-                        'negative': negative,
-                        'ns_exponent': 1,
-                    }
-                    fname_w2v_model = '{}.pk'.format(utils.parameters2fname(parameters))
-                    fpath_w2v_model = os.path.join(fdir_model, 'w2v', fname_w2v_model)
+def word_embedding(train):
+    fdir_model = os.path.join(cfg['root'], cfg['fdir_model'])
+    parameters = {
+        'size': 200,
+        'window': 10,
+        'iter': 200,
+        'min_count': 10,
+        'workers': 4,
+        'sg': 1,
+        'hs': 1,
+        'negative': 5,
+        'ns_exponent': 0.75,
+    }
+    fname_w2v_model = 'paragraph_ngram_{}.pk'.format(utils.parameters2fname(parameters))
+    fpath_w2v_model = os.path.join(fdir_model, 'w2v', fname_w2v_model)
 
-                    _start = time()
-                    w2v_model = Embedding().word2vec(fpath=fpath_w2v_model, 
-                                                     sents=sents, 
-                                                     parameters=parameters, 
-                                                     train=True)
-                    _end = time()
-                    print('Training Word2Vec Model: {:,.02f} minutes'.format((_end-_start)/60))
-                    print('# of Vocabs: {}'.format(len(w2v_model.model.wv.vocab)))
+    _start = time()
+
+    if train:
+        docs = [p.ngram for p in read.docs(iter_unit='paragraph')]
+        model = Word2Vec(
+            size=parameters['size'],
+            window=parameters['window'],
+            iter=parameters['iter'],
+            min_count=parameters['min_count'],
+            workers=parameters['workers'],
+            sg=parameters['sg'],
+            hs=parameters['hs'],
+            negative=parameters['negative'],
+            ns_exponent=parameters['ns_exponent'],
+        )
+        w2v_model = Word2VecModel(docs=docs, model=model, parameters=parameters)
+        w2v_model.train()
+        write.object(obj=w2v_model, fpath=fpath_w2v_model)
+    else:
+        with open(fpath_w2v_model, 'rb') as f:
+            w2v_model = pk.load(f)
+
+    _end = time()
+    print('Training Word2Vec Model: {:,.02f} minutes'.format((_end-_start)/60))
+    print('# of Vocabs: {}'.format(len(w2v_model.model.wv.vocab)))
+    return w2v_model
 
 
 ## Evaluation of Embedding
-# word_list = ['aashto-NUM/JJ', 'astm-NUM/JJ']
-# for idx, w in enumerate(word_list):
-# # for idx, w in enumerate(list(w2v_model.model.wv.vocab)[:100]):
-#     print('{}: {}'.format(w, ', '.join([w for w, s in w2v_model.model.wv.most_similar(w, topn=5)])))
+def evaluate_w2v_model(w2v_model):
+    keywords = ['specification', 'slurry', 'spread', 'smooth', 'include', 'fill', 'exceed', 'contractor']
+    for word in keywords: #sorted(w2v_model.model.wv.vocab):
+        print('{:15s}: {}'.format(word, ', '.join([w for w, _ in w2v_model.model.wv.most_similar(word)[:5]])))
 
+## Word Flows
+def calculate_word_flow(min_similarity, do, **kwargs):
+    fname_word_flows = 'word_flows_{}.pk'.format(min_similarity)
+    fdir_word_flows = os.path.join(cfg['root'], cfg['fdir_model'], 'thesaurus/')
+    fpath_word_flows = os.path.join(fdir_word_flows, fname_word_flows)
 
-## Flow Margin
-# words = {}
-# for word in w2v_model.model.wv.vocab:
-#     similar_list = [(w, s) for (w, s) in w2v_model.model.wv.most_similar(word, topn=10) if s>=0.7]
-#     if similar_list:
-#         words[word] = similar_list
+    if do:
+        w2v_model = kwargs.get('w2v_model')
+        word_links = defaultdict(list)        
+        for word in w2v_model.model.wv.vocab:
+            similar_list = [(w, s) for w, s in w2v_model.model.wv.most_similar(word) if s >= min_similarity]
+            word_links[word] = list(sorted(similar_list, key=lambda x:x[1], reverse=True))
 
-# for word in sorted(words.keys()):
-#     print('{}: {}'.format(word, ', '.join(['{}({:.03f})'.format(w, s) for w, s in words[word]])))
+        word_flows = []
+        for word_to in word_links:
+            for rank, (word_from, similarity) in enumerate(word_links[word_to]):
+                score = (len(word_links[word_to])-rank)/len(word_links[word_to])
+                word_flows.append(WordFlow(word_from=word_from, word_to=word_to, similarity=similarity, score=score))
+        
+        write.object(obj=word_flows, fpath=fpath_word_flows)
+
+    else:
+        with open(fpath_word_flows, 'rb') as f:
+            word_flows = pk.load(f)
+
+    print('Word Flow Calculation: {:,} flows'.format(len(word_flows)))
+    return word_flows
+
+def visualize_word_flow(word_flows):
+    visualizer.network([(f.word_from, f.word_to, f.score) for f in word_flows])
 
 
 ## Pivot Term Determination
+def get_mapping_rules(do, **kwargs):
+    fname_rules = 'word_mapping_rules.pk'
+    fdir_rules = os.path.join(cfg['root'], cfg['fdir_model'], 'thesaurus/')
+    fpath_rules = os.path.join(fdir_rules, fname_rules)
+
+    if do:
+        word_flows = kwargs.get('word_flows')
+        flow_margin = defaultdict(float)
+        for flow in word_flows:
+            flow_margin[flow.word_from] -= flow.score
+            flow_margin[flow.word_to] += flow.score
+
+        rules = {}
+        for word in list(flow_margin.keys()):
+            if flow_margin[word] > 0:
+                rules[word] = word
+            else:
+                candidates = [f for f in word_flows if f.word_from == word]
+
+                ## TODO: needs to be recursive
+                pivot_term = list(sorted(candidates, key=lambda x:flow_margin[x.word_to], reverse=True))[0].word_to
+                rules[word] = pivot_term
+
+        write.object(obj=rules, fpath=fpath_rules)
+
+    else:
+        with open(fpath_rules, 'rb') as f:
+            rules = pk.load(f)
+
+    print('Word Mapping Rules: {:,}'.format(len(rules)))
+    return rules
+
+def visualize_word_map(rules):
+    visualizer.network([(word_from, word_to, 1) for word_from, word_to in rules.items()])
 
 
 
 
-## Term Map
+
+if __name__ == '__main__':
+    w2v_model = word_embedding(train=False)
+    # evaluate_w2v_model(w2v_model)
+    
+    word_flows = calculate_word_flow(min_similarity=0.7, do=False, w2v_model=w2v_model)
+    # visualize_word_flow(word_flows)
+
+    word_mapping_rules = get_mapping_rules(do=False, word_flows=word_flows)
+    # visualize_word_map(word_mapping_rules)
