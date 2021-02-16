@@ -7,6 +7,8 @@ import sys
 import pickle as pk
 from time import time
 
+from gensim.models import Word2Vec
+
 from config import Config
 with open('/data/blank54/workspace/project/spec/spec.cfg', 'r') as f:
     cfg = Config(f)
@@ -19,9 +21,8 @@ utils = Utils()
 visualizer = Visualizer()
 
 
-## Word Embedding
-def word_embedding(train):
-    fdir_model = os.path.join(cfg['root'], cfg['fdir_model'])
+## Word2Vec Embedding
+def word2vec_embedding(iter_unit, train):
     parameters = {
         'size': 200,
         'window': 10,
@@ -33,23 +34,25 @@ def word_embedding(train):
         'negative': 5,
         'ns_exponent': 0.75,
     }
-    fname_w2v_model = 'paragraph_ngram_{}.pk'.format(utils.parameters2fname(parameters))
+
+    fdir_model = os.path.join(cfg['root'], cfg['fdir_model'])
+    fname_w2v_model = '{}_ngram_{}.pk'.format(iter_unit, utils.parameters2fname(parameters))
     fpath_w2v_model = os.path.join(fdir_model, 'w2v', fname_w2v_model)
 
     _start = time()
 
     if train:
-        docs = [p.ngram for p in read.docs(iter_unit='paragraph')]
+        docs = [d.ngram for d in read.docs(iter_unit=iter_unit)]
         model = Word2Vec(
-            size=parameters['size'],
-            window=parameters['window'],
-            iter=parameters['iter'],
-            min_count=parameters['min_count'],
-            workers=parameters['workers'],
-            sg=parameters['sg'],
-            hs=parameters['hs'],
-            negative=parameters['negative'],
-            ns_exponent=parameters['ns_exponent'],
+            size=parameters.get('size'),
+            window=parameters.get('window'),
+            iter=parameters.get('iter'),
+            min_count=parameters.get('min_count'),
+            workers=parameters.get('workers'),
+            sg=parameters.get('sg'),
+            hs=parameters.get('hs'),
+            negative=parameters.get('negative'),
+            ns_exponent=parameters.get('ns_exponent'),
         )
         w2v_model = Word2VecModel(docs=docs, model=model, parameters=parameters)
         w2v_model.train()
@@ -59,7 +62,7 @@ def word_embedding(train):
             w2v_model = pk.load(f)
 
     _end = time()
-    print('Training Word2Vec Model: {:,.02f} minutes'.format((_end-_start)/60))
+    print('Training Word2Vec Model [{}]: {:,.02f} minutes'.format(iter_unit, (_end-_start)/60))
     print('# of Vocabs: {}'.format(len(w2v_model.model.wv.vocab)))
     return w2v_model
 
@@ -143,11 +146,11 @@ def visualize_word_map(rules):
 
 
 if __name__ == '__main__':
-    w2v_model = word_embedding(train=False)
+    w2v_model = word2vec_embedding(iter_unit='paragraph', train=True)
     # evaluate_w2v_model(w2v_model)
     
-    word_flows = calculate_word_flow(min_similarity=0.7, do=False, w2v_model=w2v_model)
+    word_flows = calculate_word_flow(min_similarity=0.7, do=True, w2v_model=w2v_model)
     # visualize_word_flow(word_flows)
 
-    word_mapping_rules = get_mapping_rules(do=False, word_flows=word_flows)
+    word_mapping_rules = get_mapping_rules(do=True, word_flows=word_flows)
     # visualize_word_map(word_mapping_rules)

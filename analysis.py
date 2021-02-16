@@ -10,7 +10,6 @@ import operator
 import itertools
 import pickle as pk
 from tqdm import tqdm
-from numba import jit, cuda
 from collections import defaultdict, Counter
 from inflection import singularize
 
@@ -18,7 +17,7 @@ import nltk
 from nltk.stem.lancaster import LancasterStemmer
 from nltk.stem import WordNetLemmatizer
 
-from gensim.models import Word2Vec
+from sklearn.metrics.pairwise import cosine_similarity
 
 import networkx as nx
 import matplotlib
@@ -35,8 +34,11 @@ from object import *
 
 
 class Utils:
-    # def fname2spec_info(self, fname):
-    #     return '_'.join(fname[:-4].split('_')[:3])
+    def parse_fname(self, fname, iter_unit):
+        if iter_unit == 'spec':
+            return '_'.join(fname[:-4].split('_')[:3])
+        elif iter_unit == 'section_manual':
+            return '_'.join(fname[:-4].split('_')[:5])
 
     def line2paragraph_info(self, line):
         paragraph_info = []
@@ -49,6 +51,23 @@ class Utils:
 
     def parameters2fname(self, parameters):
         return '_'.join([str(v) for (p, v) in parameters.items()])
+
+    def pairing(self, tag1_list, tag2_list):
+        pairs = defaultdict(dict)
+        for tag1, vec1 in tag1_list:
+            for tag2, vec2 in tag2_list:
+                if tag2 == tag1:
+                    continue
+                else:
+                    score = (cosine_similarity([vec1], [vec2])[0][0]+1)/2 # normalized to [0,1]
+                    pairs[tag1][tag2] = score
+                    pairs[tag2][tag1] = score
+
+        sorted_pairs = defaultdict(list)
+        for tag, paired_tags in pairs.items():
+            sorted_pairs[tag] = list(sorted(paired_tags.items(), key=lambda x:x[1], reverse=True))
+
+        return sorted_pairs
 
     # def merge_chunks(self, chunks):
     #     result = []
@@ -87,6 +106,9 @@ class Read(IO):
             fpath = os.path.join(fdir, fname)
             with open(fpath, 'rb') as f:
                 yield pk.load(f)
+
+    def docs_included(self, iter_unit, hyper_tag):
+        return [d for d in self.docs(iter_unit=iter_unit) if hyper_tag.lower() in d.tag]
 
     def word_map(self, option):
         fpath = os.path.join(self.fdir_corpus, 'thesaurus/{}.txt'.format(option))
@@ -141,8 +163,21 @@ class Write(IO):
 
 
 class BuildCorpus:
-    def section2paragraph(self, section):
-        for paragraph in section.split('\n\n'):
+    def section(self, tag, section_text):
+        sents = []
+        for p in self.section2paragraph(section_text=section_text):
+            if p.text:
+                sents.append(p.text)
+            else:
+                continue
+
+        return Section(tag=tag,
+                       text='  '.join(sents),
+                       sents=sents)
+
+
+    def section2paragraph(self, section_text):
+        for paragraph in section_text.split('\n\n'):
             lines = paragraph.split('\n')
             tag = Utils().line2paragraph_info(lines[0])
             text = '  '.join(lines[1:])
@@ -460,3 +495,4 @@ class Visualizer:
                     fontsize=8)
 
         plt.show()
+

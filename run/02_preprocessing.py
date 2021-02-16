@@ -18,68 +18,71 @@ read = Read()
 write = Write()
 
 
-def paragraph_preprocess(do):
+def preprocess(iter_unit, do):
     size_before = 0
     size_after = 0
 
     unit_map = read.word_map(option='unit')
     stopword_list = read.stopword_list()
 
-    fdir_corpus = os.path.join(cfg['root'], cfg['fdir_corpus'], 'paragraph')
+    fdir_corpus = os.path.join(cfg['root'], cfg['fdir_corpus'], iter_unit)
     with tqdm(total=len(os.listdir(fdir_corpus))) as pbar:
-        for p in read.docs(iter_unit='paragraph'):
-            size_before += os.path.getsize(p.fpath)
+        for d in read.docs(iter_unit=iter_unit):
+            size_before += os.path.getsize(d.fpath)
 
             if do:
-                text_normalized = preprocessor.normalize(text=p.text, unit_map=unit_map)
-                p.token = preprocessor.tokenize(text=text_normalized)
-                p.stop = preprocessor.stopword_removal(sent=p.token, stopword_list=stopword_list)
-                p.stem = preprocessor.stemmize(sent=p.stop)
-                p.lemma = preprocessor.lemmatize(sent=p.stop)
-                write.object(obj=p, fpath=p.fpath)
+                text_normalized = preprocessor.normalize(text=d.text, unit_map=unit_map)
+                d.token = preprocessor.tokenize(text=text_normalized)
+                d.stop = preprocessor.stopword_removal(sent=d.token, stopword_list=stopword_list)
+                d.stem = preprocessor.stemmize(sent=d.stop)
+                d.lemma = preprocessor.lemmatize(sent=d.stop)
+                write.object(obj=d, fpath=d.fpath)
             else:
                 pass
 
-            size_after += os.path.getsize(p.fpath)
+            size_after += os.path.getsize(d.fpath)
             pbar.update(1)
 
-    print('Preprocessing\n └ {:,.02f} MB -> {:,.02f} MB'.format(size_before/1024**2, size_after/1024**2))
+    print('Preprocessing [{}]\n └ {:,.02f} MB -> {:,.02f} MB'.format(iter_unit, size_before/1024**2, size_after/1024**2))
 
 
 ## Ngram
-def paragraph_ngram_parsing(do):
+def ngram_parsing(iter_unit, do):
     size_before = 0
     size_after = 0
 
     if do:
-        docs = [p.lemma for p in read.docs(iter_unit='paragraph')]
+        docs = [d.lemma for d in read.docs(iter_unit=iter_unit)]
         bigram_counter = ngram_parser.count(docs=docs)
     else:
         pass
 
-    fdir_corpus = os.path.join(cfg['root'], cfg['fdir_corpus'], 'paragraph')
+    fdir_corpus = os.path.join(cfg['root'], cfg['fdir_corpus'], iter_unit)
     with tqdm(total=len(os.listdir(fdir_corpus))) as pbar:
-        for p in read.docs(iter_unit='paragraph'):
-            size_before += os.path.getsize(p.fpath)
+        for d in read.docs(iter_unit=iter_unit):
+            size_before += os.path.getsize(d.fpath)
 
             if do:
-                p.ngram = ngram_parser.parse(sent=p.lemma, bigram_counter=bigram_counter)
-                write.object(obj=p, fpath=p.fpath)
+                d.ngram = ngram_parser.parse(sent=d.lemma, bigram_counter=bigram_counter)
+                write.object(obj=d, fpath=d.fpath)
             else:
                 pass
 
-            size_after += os.path.getsize(p.fpath)
+            size_after += os.path.getsize(d.fpath)
             pbar.update(1)
 
-        print('Ngram Parsing:\n └ {:,.02f} MB -> {:,.02f} MB'.format(size_before/1024**2, size_after/1024**2))
+        print('Ngram Parsing [{}]:\n └ {:,.02f} MB -> {:,.02f} MB'.format(iter_unit, size_before/1024**2, size_after/1024**2))
 
 
 
 
 
 if __name__ == '__main__':
-    paragraph_preprocess(do=True)
-    paragraph_ngram_parsing(do=True)
+    preprocess(iter_unit='section_manual', do=True)
+    ngram_parsing(iter_unit='section_manual', do=True)
+
+    # preprocess(iter_unit='paragraph', do=True)
+    # ngram_parsing(iter_unit='paragraph', do=True)
 
 
 
