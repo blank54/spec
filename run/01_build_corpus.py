@@ -23,7 +23,7 @@ write = Write()
 #     sentences = []
 #     with tqdm(total=len(flist)) as pbar:
 #         for fname in flist:
-#             info = utils.parse_fname(fname=fname, iter_unit='spec')
+#             info = utils.parse_fname(fpath=fpath, iter_unit='spec')
 #             fpath = os.path.join(fdir_data, fname)
 #             with open(fpath, 'r', encoding='utf-8') as f:
 #                 spec = f.read()
@@ -49,7 +49,7 @@ def build_corpus_section():
         for fname in flist:
             fpath = os.path.join(fdir_data, fname)
             with open(fpath, 'r', encoding='utf-8') as f:
-                tag = Utils().parse_fname(fname=fname, iter_unit='section_manual')
+                tag = Utils().parse_fname(fpath=fpath, iter_unit='section_manual')
                 section_text = re.sub('\n+\n', '\n\n', f.read().replace('\ufeff', ''))
                 s = BuildCorpus().section(tag=tag, section_text=section_text)
 
