@@ -27,7 +27,7 @@ if __name__ == '__main__':
     fname_ner_corpus = 'ner_corpus.pk'
     ner_corpus = read.ner_corpus(fname=fname_ner_corpus)
 
-    ## NER Model Development
+    ## NER Model Identification
     ner_model_parameters = {
         'lstm_units': 512,
         'lstm_return_sequences': True,
@@ -36,4 +36,6 @@ if __name__ == '__main__':
         'dense_activation': 'relu',
     }
     ner_model = NER_Modeling().initialize(ner_corpus=ner_corpus, parameters=ner_model_parameters)
+    
+    ## NER Model Training
     ## TODO
