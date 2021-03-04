@@ -5,10 +5,13 @@
 import os
 import re
 import sys
+import csv
 import copy
 import operator
 import itertools
+import numpy as np
 import pickle as pk
+from time import time
 from tqdm import tqdm
 from collections import defaultdict, Counter
 from inflection import singularize
@@ -34,10 +37,11 @@ from object import *
 
 
 class Utils:
-    def parse_fname(self, fname, iter_unit):
+    def parse_fname(self, fpath, iter_unit):
+        fname = os.path.basename(fpath)
         if iter_unit == 'spec':
             return '_'.join(fname[:-4].split('_')[:3])
-        elif iter_unit == 'section_manual':
+        elif iter_unit == 'section' or iter_unit == 'section_manual':
             return '_'.join(fname[:-4].split('_')[:5])
 
     def line2paragraph_info(self, line):
@@ -68,6 +72,17 @@ class Utils:
             sorted_pairs[tag] = list(sorted(paired_tags.items(), key=lambda x:x[1], reverse=True))
 
         return sorted_pairs
+
+    def assign_word_index(self, docs, **kwargs):
+        add = kwargs.get('add', [])
+        words = list(set(itertools.chain(*[doc.words for doc in docs])))
+        for w in add:
+            words.append(w)
+
+        word2id = {w: i for i, w in enumerate(words)}
+        id2word = {i: w for i, w in enumerate(words)}
+        return word2id, id2word
+
 
     # def merge_chunks(self, chunks):
     #     result = []
@@ -110,6 +125,17 @@ class Read(IO):
     def docs_included(self, iter_unit, hyper_tag):
         return [d for d in self.docs(iter_unit=iter_unit) if hyper_tag.lower() in d.tag]
 
+    def object(self, format, fpath):
+        if format == 'pk':
+            with open(fpath, 'rb') as f:
+                return pk.load(f)
+
+    def word2vec(self, fname):
+        fdir = os.path.join(cfg['root'], cfg['fdir_model'], 'w2v/')
+        fpath = os.path.join(fdir, fname)
+        with open(fpath, 'rb') as f:
+            return pk.load(f)
+
     def word_map(self, option):
         fpath = os.path.join(self.fdir_corpus, 'thesaurus/{}.txt'.format(option))
         word_map = defaultdict(str)
@@ -124,6 +150,73 @@ class Read(IO):
         with open(fpath, 'r', encoding='utf-8') as f:
             return [word.strip() for word in f.read().strip().split('\n') if word]
 
+    def ner_labels(self):
+        fpath = os.path.join(self.fdir_corpus, 'ner/labels/ner_labels.txt')
+        with open(fpath, 'r', encoding='utf-8') as f:
+            label_list = [tuple(pair.split('  ')) for pair in f.read().strip().split('\n')]
+
+        label_list.append(('__PAD__', '6'))
+        label_list.append(('__UNK__', '7'))
+        return NER_Labels(label_list=label_list)
+
+    def ner_weighted_labels(self):
+        fpath = os.path.join(self.fdir_corpus, 'ner/labels/ner_weighted_labels.txt')
+        with open(fpath, 'r', encoding='utf-8') as f:
+            return [l.strip() for l in f.read().strip().split('\n') if l]
+
+    def ner_labeled_doc(self, fpath):
+        with open(fpath, 'r', encoding='utf-8') as f:
+            lines = [line for line in csv.reader(f)]
+
+        doc = []
+        errors = []
+        if len(lines) % 2 == 1:
+            print('Error: len(sent) != len(labels)')
+
+        else:
+            for idx in range(len(lines)):
+                if idx % 2 == 0:
+                    section_info = Utils().parse_fname(fpath=fpath, iter_unit='section')
+                    line_num = int(idx/2)
+                    tag = '{}_{}'.format(section_info, line_num)
+                    words = [w.lower() for w in lines[idx] if w]
+                else:
+                    labels = [l for l in lines[idx] if l]
+                    if len(words) == len(labels):
+                        doc.append(LabeledSentence(tag=tag, words=words, labels=labels))
+                    else:
+                        errors.append((fpath, idx))
+
+        return doc, errors
+
+    def ner_labeled_docs(self):
+        fdir = os.path.join(cfg['root'], cfg['fdir_data_ner'])
+        docs = []
+        for fname in os.listdir(fdir):
+            fpath = os.path.join(fdir, fname)
+            doc, errors = self.ner_labeled_doc(fpath=fpath)
+            docs.extend(doc)
+            if errors:
+                print(errors)
+
+        for sent in docs:
+            yield sent
+
+    def ner_corpus(self, fname):
+        fdir = os.path.join(self.fdir_corpus, 'ner/')
+        fpath = os.path.join(fdir, fname)
+        with open(fpath, 'rb') as f:
+            return pk.load(f)
+
+    def ner_model(self, fname):
+        fdir = os.path.join(self.fdir_model, 'ner/')
+        fpath = os.path.join(fdir, fname)
+        ner_model = NER_Model(fname=fname)
+        ner_model.initialize()
+        ner_model.model.load_weights(ner_model.fpath)
+        return ner_model
+
+
 
 
 class Write(IO):
@@ -137,6 +230,7 @@ class Write(IO):
         self.makedir(fpath)
         with open(fpath, 'wb') as f:
             pk.dump(obj, f)
+
 
 
 # class Stat:
@@ -162,7 +256,7 @@ class Write(IO):
 #         return singularized, cnt_before, cnt_after
 
 
-class BuildCorpus:
+class BuildCorpus(IO):
     def section(self, tag, section_text):
         sents = []
         for p in self.section2paragraph(section_text=section_text):
@@ -184,6 +278,49 @@ class BuildCorpus:
             fpath = ''
             yield Paragraph(tag=tag, text=text)
 
+    def ner_corpus(self, max_sent_len, fname, build):
+        fdir = os.path.join(self.fdir_corpus, 'ner/')
+        fpath = os.path.join(fdir, fname)
+
+        if build:
+            docs = list(Read().ner_labeled_docs())
+            ner_labels = Read().ner_labels()
+            weighted_labels = Read().ner_weighted_labels()
+
+            add = ['__PAD__', '__UNK__']
+            word2id, id2word = Utils().assign_word_index(docs=docs, add=add)
+
+            X_words = []
+            Y_labels = []
+            for doc in docs:
+                X_words.append([word2id[w] for w in doc.words])
+                Y_labels.append(doc.labels)
+                if any(w in [ner_labels.id2label[int(l)] for l in doc.labels] for w in weighted_labels):
+                    X_words.append([word2id[w] for w in doc.words])
+                    Y_labels.append(doc.labels)
+
+            X_words_pad = pad_sequences(
+                maxlen=max_sent_len,
+                sequences=X_words,
+                padding='post',
+                value=word2id['__PAD__'])
+            Y_labels_pad = pad_sequences(
+                maxlen=max_sent_len,
+                sequences=Y_labels,
+                padding='post',
+                value=ner_labels.label2id['__PAD__'])
+
+            ner_corpus = NER_Corpus(docs=docs, ner_labels=ner_labels, weighted_labels=weighted_labels, 
+                max_sent_len=max_sent_len,
+                word2id=word2id, id2word=id2word, X_words=X_words, Y_labels=Y_labels, 
+                X_words_pad=X_words_pad, Y_labels_pad=Y_labels_pad, fpath=fpath)
+            
+            Write().object(obj=ner_corpus, fpath=fpath)
+
+        else:
+            ner_corpus = Read().ner_corpus(fname=fname)
+
+        return ner_corpus
 
     # def section2sentence(self, section):
     #     sentences = []
@@ -450,7 +587,55 @@ class NgramParser:
         return sent_with_ngram
 
 
-# class Embedding:
+class Embedding:
+    def update_word2vec(self, fname, update, **kwargs):
+        fdir = os.path.join(cfg['root'], cfg['fdir_model'], 'w2v/')
+        fname_updated = 'w2v_model_updated.pk'
+        fpath_updated = os.path.join(fdir, fname_updated)
+
+        _start = time()
+        if update:
+            docs = kwargs.get('docs')
+            w2v_model = Read().word2vec(fname=fname)
+            w2v_model.update(new_docs=docs)
+
+            Write().object(obj=w2v_model, fpath=fpath_updated)
+        else:
+            w2v_model = Read().word2vec(fname=fname_updated)
+
+        feature_size = w2v_model.model.wv.vector_size
+        word_vector = {w: w2v_model.model.wv[w] for w in w2v_model.model.wv.vocab.keys()}
+        word_vector['__PAD__'] = np.zeros(feature_size)
+        word_vector['__UNK__'] = np.zeros(feature_size)
+        del w2v_model
+        _end = time()
+
+        print('Update Word2Vec Model: {:,} words ({:,.02f}) minutes'.format(len(word_vector), (_end-_start)/60))
+        return feature_size, word_vector
+
+    def ner_word_embedding(self, ner_corpus, feature_size, word_vector):
+        X_embedded = np.zeros((len(ner_corpus), ner_corpus.max_sent_len, feature_size))
+        Y_embedded = np.zeros((len(ner_corpus), ner_corpus.max_sent_len, len(ner_corpus.ner_labels)))
+        
+        with tqdm(total=len(ner_corpus)*ner_corpus.max_sent_len) as pbar:
+            for i in range(len(ner_corpus)):
+                for j, _id in enumerate(ner_corpus.X_words_pad[i]):
+                    for k in range(feature_size):
+                        word = ner_corpus.id2word[_id]
+                        X_embedded[i, j, k] = word_vector[word][k]
+
+                    Y_embedded[i] = to_categorical(ner_corpus.Y_labels_pad[i], num_classes=(len(ner_corpus.ner_labels)))
+                    pbar.update(1)
+
+        ner_corpus.feature_size = feature_size
+        ner_corpus.X_embedded = X_embedded
+        ner_corpus.Y_embedded = Y_embedded
+
+        Write().object(obj=ner_corpus, fpath=ner_corpus.fpath)
+        print('Word Embedding of NER Corpus: {:,} sentences'.format(len(X_embedded)))
+        return ner_corpus
+
+
 #     def word2vec(self, docs, parameters, **kwargs):
 #         model = Word2Vec(
 #             size=parameters['size'],
@@ -495,4 +680,3 @@ class Visualizer:
                     fontsize=8)
 
         plt.show()
-
