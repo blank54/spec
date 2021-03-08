@@ -208,12 +208,15 @@ class Read(IO):
         with open(fpath, 'rb') as f:
             return pk.load(f)
 
-    def ner_model(self, fname):
-        fdir = os.path.join(self.fdir_model, 'ner/')
-        fpath = os.path.join(fdir, fname)
-        ner_model = NER_Model(fname=fname)
-        ner_model.initialize()
+    def ner_model(self, fname_model, ner_corpus, parameters, **kwargs):
+        fdir = kwargs.get('fdir', os.path.join(cfg['root'], cfg['fdir_model'], 'ner/'))
+
+        ner_model = NER_Model(fdir=fdir, fname=fname_model)
+        ner_model.initialize(ner_corpus=ner_corpus, parameters=parameters)
         ner_model.model.load_weights(ner_model.fpath)
+
+        with open(ner_model.fpath_dataset, 'rb') as f:
+            ner_model.dataset = pk.load(f)
         return ner_model
 
 
@@ -230,7 +233,6 @@ class Write(IO):
         self.makedir(fpath)
         with open(fpath, 'wb') as f:
             pk.dump(obj, f)
-
 
 
 # class Stat:

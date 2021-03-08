@@ -78,8 +78,8 @@ def ngram_parsing(iter_unit, do):
 
 
 if __name__ == '__main__':
-    preprocess(iter_unit='section_manual', do=True)
-    ngram_parsing(iter_unit='section_manual', do=True)
+    preprocess(iter_unit='section_manual', do=False)
+    ngram_parsing(iter_unit='section_manual', do=False)
 
     # preprocess(iter_unit='paragraph', do=True)
     # ngram_parsing(iter_unit='paragraph', do=True)

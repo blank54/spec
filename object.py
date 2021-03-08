@@ -3,6 +3,8 @@
 
 # Configuration
 import os
+import numpy as np
+import pickle as pk
 from time import time
 
 from keras.preprocessing.sequence import pad_sequences
@@ -183,11 +185,16 @@ class NER_Corpus:
         return len(self.X_words)
 
 
+class NER_Dataset:
+    def __init__(self, X, Y, test_size):
+        self.test_size = test_size
+        self.X_train, self.X_test, self.Y_train, self.Y_test = train_test_split(X, Y, test_size=self.test_size)
+
+
 class NER_Model:
-    def __init__(self, fname):
-        self.fname = fname
-        self.fname_parameters = '{}_parameters.pk'.format(self.fname[:-3])
+    def __init__(self, **kwargs):
         self.fdir = os.path.join(cfg['root'], cfg['fdir_model'], 'ner/')
+        self.fname = kwargs.get('fname', '')
         self.fpath = os.path.join(self.fdir, self.fname)
 
         self.max_sent_len = ''
@@ -202,12 +209,9 @@ class NER_Model:
         self.lstm_recurrent_dropout = ''
         self.dense_units = ''
         self.dense_activation = ''
+        self.test_size = ''
 
-        self.X_train = ''
-        self.X_test = ''
-        self.Y_train = ''
-        self.Y_test = ''
-
+        self.dataset = ''
         self.model = ''
 
     def initialize(self, **kwargs):
@@ -260,25 +264,38 @@ class NER_Model:
             pass
 
         _start = time()
-        self.X_train, self.X_test, self.Y_train, self.Y_test = train_test_split(X, Y, test_size=self.test_size)
-        self.model.fit(x=self.X_train,
-                       y=self.Y_train,
+        self.dataset = NER_Dataset(X=X, Y=Y, test_size=self.test_size)
+        self.model.fit(x=self.dataset.X_train,
+                       y=self.dataset.Y_train,
                        batch_size=self.batch_size,
                        epochs=self.epochs,
                        validation_split=self.validation_split,
                        verbose=True)
         _end = time()
-        print('NER Model Training: {:,} records in {:,.02f} minutes'.format(len(self.X_train), (_end-_start)/60))
+        print('NER Model Training: {:,} records in {:,.02f} minutes'.format(len(self.dataset.X_train), (_end-_start)/60))
 
     def save(self, **kwargs):
-        if 'fpath' in kwargs.keys():
-            fpath_parameters = kwargs.get('fpath')
-        else:
-            fpath_parameters = self.fpath_parameters
+        fdir = kwargs.get('fdir', self.fdir)
+        fname = kwargs.get('fname', self.fname)
+        fpath = os.path.join(fdir, fname)
+        fpath_dataset = os.path.join(fdir, '{}_dataset.pk'.format(fname[:-3]))
+        
+        os.makedirs(fdir, exist_ok=True)
+        self.model.save(fpath)
 
-        os.makedirs(self.fdir, exist_ok=True)
-        self.model.save(fpath_parameters)
-        print('Save NER Model: {}'.format(fpath_parameters))
+        with open(fpath_dataset, 'wb') as f:
+            pk.dump(self.dataset, f)
+
+        print('Save NER Model: {}'.format(fpath))
+
+    def load(self, ner_corpus, parameters, **kwargs):
+        self.initialize(ner_corpus=ner_corpus, parameters=parameters)
+        self.model.load_weights(self.fpath)
+
+        fdir = kwargs.get('fdir', self.fdir)
+        fpath_dataset = os.path.join(fdir, '{}_dataset.pk'.format(self.fname[:-3]))
+        with open(fpath_dataset, 'rb') as f:
+            self.dataset = pk.load(f)
 
     def __pred2labels(self, sents, prediction):
         pred_labels = []
@@ -290,7 +307,7 @@ class NER_Model:
                 
             labels = []
             for i in range(sent_len):
-                labels.append(self.labels.id2label[np.argmax(pred[i])])
+                labels.append(self.ner_labels.id2label[np.argmax(pred[i])])
             pred_labels.append(labels)
         return pred_labels
 
@@ -298,9 +315,21 @@ class NER_Model:
         matrix_size = len(self.ner_labels)-2
         matrix = np.zeros((matrix_size+1, matrix_size+1))
 
-        prediction = self.model.predict(self.X_test)
-        pred_labels = self.__pred2labels(self.X_test, prediction)
-        test_labels = self.__pred2labels(self.Y_test, self.Y_test)
+        prediction = self.model.predict(self.dataset.X_test)
+        pred_labels = self.__pred2labels(self.dataset.X_test, prediction)
+        test_labels = self.__pred2labels(self.dataset.Y_test, self.dataset.Y_test)
+
+        for i in range(len(pred_labels)):
+            for j, pred in enumerate(pred_labels[i]):
+                matrix[self.ner_labels.label2id[test_labels[i][j]], self.ner_labels.label2id[pred]] += 1
+                
+        for i in range(matrix_size):
+            matrix[i, matrix_size] = sum(matrix[i, 0:matrix_size])
+            matrix[matrix_size, i] = sum(matrix[0:matrix_size, i])
+            
+        matrix[matrix_size, matrix_size] = sum(matrix[matrix_size, 0:matrix_size])
+        print(matrix)
+        return matrix
 
     # def predict(self, new_sent):
     #     '''
