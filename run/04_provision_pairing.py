@@ -5,8 +5,10 @@
 import os
 import sys
 import pickle as pk
+import pandas as pd
 from time import time
 import itertools
+from collections import defaultdict
 
 from gensim.models import Doc2Vec
 from gensim.models.doc2vec import TaggedDocument
@@ -84,6 +86,37 @@ def paragraph_pairing(section2vec_model, paragraph2vec_model, topn):
     print('Paragraph Pairing: {:,} pairs from {:,} sections ({:,.02f} minutes)'.format(cnt, len(section_list), (_end-_start)/60))
 
 
+## 
+def export_paired_result(provision_info, min_pairing_score):
+    fdir = os.path.join(cfg['root'], cfg['fdir_result'], 'paragraph_pairing/')
+    flist = [fname for fname in os.listdir(fdir) if fname.startswith(provision_info)]
+
+    fdir_result = os.path.join(cfg['root'], cfg['fdir_result'], 'paragraph_pairing_evaluation/')
+
+    for fname in flist:
+        fpath = os.path.join(fdir, fname)
+        with open(fpath, 'rb') as f:
+            pairs = pk.load(f)
+
+        data = defaultdict(list)
+        for p_tag_target in sorted(pairs.keys(), reverse=False):
+            p_tag_relevant, score = list(sorted(pairs[p_tag_target], key=lambda x:x[1], reverse=True))[0]
+            
+            data['target'].append(p_tag_target)
+            if score > min_pairing_score:
+                data['relevant'].append(p_tag_relevant)
+                data['score'].append('{:.03f}'.format(score))
+            else:
+                data['relevant'].append('NO RELEVANT PARAGRAPH')
+                data['score'].append('')
+
+        fname_result = fname.replace('.pk', '.xlsx')
+        fpath_result = os.path.join(fdir_result, fname_result)
+
+        df = pd.DataFrame(data)
+        df.to_excel(fpath_result, index=True, index_label='index')
+
+
 
 if __name__ == '__main__':
     parameters_section_manual = {'vector_size': 500,
@@ -112,4 +145,7 @@ if __name__ == '__main__':
 
     paragraph_pairing(section2vec_model=section2vec_model,
                       paragraph2vec_model=paragraph2vec_model,
-                      topn=5)
+                      topn=10)
+
+    provision_info = 'Qatar_Qatar_2014_06_05'
+    # export_paired_result(provision_info=provision_info, min_pairing_score=0.7)
