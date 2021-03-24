@@ -59,7 +59,9 @@ def show_casestudy_confusion_matrix():
         for e in eval_list:
             eval_dict[e] += 1
 
+    accuracy = utils.accuracy(tp=eval_dict['TP'], tn=eval_dict['TN'], fp=eval_dict['FP'], fn=eval_dict['FN'])
     print(eval_dict)
+    print('Acccuracy: {:.02f}'.format(accuracy*100))
 
 
 if __name__ == '__main__':

@@ -56,6 +56,9 @@ class Utils:
     def parameters2fname(self, parameters):
         return '_'.join([str(v) for (p, v) in parameters.items()])
 
+    def relevance(self, vec1, vec2):
+        return (cosine_similarity([vec1], [vec2])[0][0]+1)/2 # normalized to [0,1]
+
     def pairing(self, tag1_list, tag2_list):
         pairs = defaultdict(dict)
         for tag1, vec1 in tag1_list:
@@ -63,9 +66,9 @@ class Utils:
                 if tag2 == tag1:
                     continue
                 else:
-                    score = (cosine_similarity([vec1], [vec2])[0][0]+1)/2 # normalized to [0,1]
+                    score = self.relevance(vec1, vec2)
                     pairs[tag1][tag2] = score
-                    pairs[tag2][tag1] = score
+                    # pairs[tag2][tag1] = score
 
         sorted_pairs = defaultdict(list)
         for tag, paired_tags in pairs.items():
@@ -82,6 +85,9 @@ class Utils:
         word2id = {w: i for i, w in enumerate(words)}
         id2word = {i: w for i, w in enumerate(words)}
         return word2id, id2word
+
+    def accuracy(self, tp, tn, fp, fn):
+        return (tp+tn)/(tp+tn+fp+fn)
 
 
     # def merge_chunks(self, chunks):
