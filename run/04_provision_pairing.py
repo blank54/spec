@@ -91,7 +91,7 @@ def export_paired_result(provision_info, min_pairing_score):
     fdir = os.path.join(cfg['root'], cfg['fdir_result'], 'paragraph_pairing/')
     flist = [fname for fname in os.listdir(fdir) if fname.startswith(provision_info)]
 
-    fdir_result = os.path.join(cfg['root'], cfg['fdir_result'], 'paragraph_pairing_evaluation/')
+    fdir_result = os.path.join(cfg['root'], cfg['fdir_result'], 'paragraph_pairing_case_study/')
 
     for fname in flist:
         fpath = os.path.join(fdir, fname)
@@ -112,6 +112,7 @@ def export_paired_result(provision_info, min_pairing_score):
 
         fname_result = fname.replace('.pk', '.xlsx')
         fpath_result = os.path.join(fdir_result, fname_result)
+        write.makedir(fpath_result)
 
         df = pd.DataFrame(data)
         df.to_excel(fpath_result, index=True, index_label='index')
@@ -148,4 +149,4 @@ if __name__ == '__main__':
                       topn=10)
 
     provision_info = 'Qatar_Qatar_2014_06_05'
-    # export_paired_result(provision_info=provision_info, min_pairing_score=0.7)
+    export_paired_result(provision_info=provision_info, min_pairing_score=0.8)
