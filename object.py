@@ -125,12 +125,6 @@ class Doc2VecModel:
                          epochs=self.model.epochs)
 
 
-# class Pair:
-#     def __init__(self, tags, score):
-#         self.tags = tags
-#         self.score = score
-
-
 class LabeledSentence:
     def __init__(self, tag, words, labels):
         self.tag = tag
@@ -330,12 +324,3 @@ class NER_Model:
         matrix[matrix_size, matrix_size] = sum(matrix[matrix_size, 0:matrix_size])
         print(matrix)
         return matrix
-
-    # def predict(self, new_sent):
-    #     '''
-    #     new_sent: list of lowercase words (e.g., [w1, w2, ...])
-    #     '''
-    #     sent_by_id = []
-    #     for w in [w.lower() for w in sent]:
-    #         try:
-    #             sent_by_id.append(self.word2id[w])
