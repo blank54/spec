@@ -17,7 +17,7 @@ utils = Utils()
 
 
 def show_relevance():
-    fdir = os.path.join(cfg['root'], cfg['fdir_model'], 'd2v/')
+    fdir = os.path.join(cfg['root'], cfg['fdir_d2v_model'])
     fname = 'section_manual_ngram_500_10_10_10_1_5_200_1.pk'
     fpath = os.path.join(fdir, fname)
 
@@ -48,7 +48,7 @@ def show_relevance():
         print('_______________________')
 
 def show_casestudy_confusion_matrix():
-    fdir = os.path.join(cfg['root'], cfg['fdir_result'], 'paragraph_pairing_casestudy_eval/')
+    fdir = os.path.join(cfg['root'], cfg['fdir_result_paragraph_pairing_casestudy'])
     
     eval_dict = defaultdict(int)
     for fname in os.listdir(fdir):

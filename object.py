@@ -187,7 +187,7 @@ class NER_Dataset:
 
 class NER_Model:
     def __init__(self, **kwargs):
-        self.fdir = os.path.join(cfg['root'], cfg['fdir_model'], 'ner/')
+        self.fdir = os.path.join(cfg['root'], cfg['fdir_ner_model'])
         self.fname = kwargs.get('fname', '')
         self.fpath = os.path.join(self.fdir, self.fname)
 
@@ -324,3 +324,12 @@ class NER_Model:
         matrix[matrix_size, matrix_size] = sum(matrix[matrix_size, 0:matrix_size])
         print(matrix)
         return matrix
+
+    # def predict(self, new_sent):
+    #     '''
+    #     new_sent: list of lowercase words (e.g., [w1, w2, ...])
+    #     '''
+    #     sent_by_id = []
+    #     for w in [w.lower() for w in sent]:
+    #         try:
+    #             sent_by_id.append(self.word2id[w])

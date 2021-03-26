@@ -93,6 +93,9 @@ class Utils:
 class IO:
     fdir_model = os.path.join(cfg['root'], cfg['fdir_model'])
     fdir_corpus = os.path.join(cfg['root'], cfg['fdir_corpus'])
+    fdir_thesaurus = os.path.join(cfg['root'], cfg['fdir_thesaurus'])
+    fdir_ner_labels = os.path.join(cfg['root'], cfg['fdir_ner_labels'])
+    fdir_ner_corpus = os.path.join(cfg['root'], cfg['fdir_ner_corpus'])
 
 
 class Read(IO):
@@ -118,7 +121,7 @@ class Read(IO):
             return pk.load(f)
 
     def word_map(self, option):
-        fpath = os.path.join(self.fdir_corpus, 'thesaurus/{}.txt'.format(option))
+        fpath = os.path.join(self.fdir_thesaurus, '{}.txt'.format(option))
         word_map = defaultdict(str)
         with open(fpath, 'r', encoding='utf-8') as f:
             for pair in f.read().strip().split('\n'):
@@ -127,12 +130,12 @@ class Read(IO):
         return word_map
 
     def stopword_list(self):
-        fpath = os.path.join(self.fdir_corpus, 'thesaurus/stopword_list.txt')
+        fpath = os.path.join(self.fdir_thesaurus, 'stopword_list.txt')
         with open(fpath, 'r', encoding='utf-8') as f:
             return [word.strip() for word in f.read().strip().split('\n') if word]
 
     def ner_labels(self):
-        fpath = os.path.join(self.fdir_corpus, 'ner/labels/ner_labels.txt')
+        fpath = os.path.join(self.fdir_ner_labels, 'ner_labels.txt')
         with open(fpath, 'r', encoding='utf-8') as f:
             label_list = [tuple(pair.split('  ')) for pair in f.read().strip().split('\n')]
 
@@ -141,7 +144,7 @@ class Read(IO):
         return NER_Labels(label_list=label_list)
 
     def ner_weighted_labels(self):
-        fpath = os.path.join(self.fdir_corpus, 'ner/labels/ner_weighted_labels.txt')
+        fpath = os.path.join(self.fdir_ner_labels, 'ner_weighted_labels.txt')
         with open(fpath, 'r', encoding='utf-8') as f:
             return [l.strip() for l in f.read().strip().split('\n') if l]
 
@@ -183,14 +186,18 @@ class Read(IO):
         for sent in docs:
             yield sent
 
-    def ner_corpus(self, fname):
-        fdir = os.path.join(self.fdir_corpus, 'ner/')
-        fpath = os.path.join(fdir, fname)
+    def ner_corpus(self, **kwargs):
+        if 'fname' in kwargs.keys():
+            fname = kwargs.get('fname')
+            fpath = os.path.join(cfg['root'], cfg['fdir_ner_corpus'], fname)
+        elif 'fpath' in kwargs.keys():
+            fpath = kwargs.get('fpath')
+
         with open(fpath, 'rb') as f:
             return pk.load(f)
 
     def ner_model(self, fname_model, ner_corpus, parameters, **kwargs):
-        fdir = kwargs.get('fdir', os.path.join(cfg['root'], cfg['fdir_model'], 'ner/'))
+        fdir = kwargs.get('fdir', os.path.join(cfg['root'], cfg['fdir_ner_model']))
 
         ner_model = NER_Model(fdir=fdir, fname=fname_model)
         ner_model.initialize(ner_corpus=ner_corpus, parameters=parameters)
@@ -237,7 +244,7 @@ class BuildCorpus(IO):
             yield Paragraph(tag=tag, text=text)
 
     def ner_corpus(self, max_sent_len, fname, build):
-        fdir = os.path.join(self.fdir_corpus, 'ner/')
+        fdir = os.path.join(self.fdir_ner_corpus)
         fpath = os.path.join(fdir, fname)
 
         if build:
@@ -412,7 +419,7 @@ class Preprocessor:
 
 class Embedding:
     def update_word2vec(self, fname, update, **kwargs):
-        fdir = os.path.join(cfg['root'], cfg['fdir_model'], 'w2v/')
+        fdir = os.path.join(cfg['root'], cfg['fdir_w2v_model'])
         fname_updated = 'w2v_model_updated.pk'
         fpath_updated = os.path.join(fdir, fname_updated)
 

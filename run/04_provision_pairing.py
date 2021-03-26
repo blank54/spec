@@ -28,9 +28,9 @@ utils = Utils()
 
 ## Doc2Vec Embedding
 def doc2vec_embedding(iter_unit, parameters, train, **kwargs):
-    fdir_model = os.path.join(cfg['root'], cfg['fdir_model'])
+    fdir_model = os.path.join(cfg['root'], cfg['fdir_d2v_model'])
     fname_model = '{}_ngram_{}.pk'.format(iter_unit, utils.parameters2fname(parameters))
-    fpath_model = os.path.join(fdir_model, 'd2v', fname_model)    
+    fpath_model = os.path.join(fdir_model, fname_model)    
 
     _start = time()
 
@@ -66,7 +66,7 @@ def paragraph_pairing(section2vec_model, paragraph2vec_model, topn):
     section_list = [(tag, section2vec_model.model.docvecs[tag]) for tag in section2vec_model.model.docvecs.index2entity]
     pairs_section = utils.pairing(tag1_list=section_list, tag2_list=section_list)
 
-    fdir_result = os.path.join(cfg['root'], cfg['fdir_result'])
+    fdir_result = os.path.join(cfg['root'], cfg['fdir_result_paragraph_pairing'])
     cnt = 0
     with tqdm(total=len(pairs_section)*topn) as pbar:
         for target_section_tag in pairs_section.keys():
@@ -77,7 +77,7 @@ def paragraph_pairing(section2vec_model, paragraph2vec_model, topn):
 
                 
                 fname_result = '{}_{}.pk'.format(target_section_tag, paired_section_tag)
-                fpath_result = os.path.join(fdir_result, 'paragraph_pairing/', fname_result)
+                fpath_result = os.path.join(fdir_result, fname_result)
                 write.object(obj=pairs_paragraph, fpath=fpath_result)
                 cnt += len(pairs_paragraph)
                 pbar.update(1)
@@ -88,10 +88,10 @@ def paragraph_pairing(section2vec_model, paragraph2vec_model, topn):
 
 ## 
 def export_paired_result(provision_info, min_pairing_score):
-    fdir = os.path.join(cfg['root'], cfg['fdir_result'], 'paragraph_pairing/')
+    fdir = os.path.join(cfg['root'], cfg['fdir_result_paragraph_pairing'])
     flist = [fname for fname in os.listdir(fdir) if fname.startswith(provision_info)]
 
-    fdir_result = os.path.join(cfg['root'], cfg['fdir_result'], 'paragraph_pairing_case_study/')
+    fdir_result = os.path.join(cfg['root'], cfg['fdir_result_paragraph_pairing_casestudy'])
 
     for fname in flist:
         fpath = os.path.join(fdir, fname)
@@ -109,6 +109,7 @@ def export_paired_result(provision_info, min_pairing_score):
             else:
                 data['relevant'].append('NO RELEVANT PARAGRAPH')
                 data['score'].append('')
+            data['eval'].append('')
 
         fname_result = fname.replace('.pk', '.xlsx')
         fpath_result = os.path.join(fdir_result, fname_result)
@@ -120,33 +121,19 @@ def export_paired_result(provision_info, min_pairing_score):
 
 
 if __name__ == '__main__':
-    parameters_section_manual = {'vector_size': 500,
-                                 'window': 10,
-                                 'min_count': 10,
-                                 'workers': 10,
-                                 'dm': 1,
-                                 'negative': 5,
-                                 'epochs': 200,
-                                 'dbow_words': 1}
-    section2vec_model = doc2vec_embedding(iter_unit='section_manual',
-                                          parameters=parameters_section_manual,
-                                          train=False)
+    # parameters_section_manual = {'vector_size': 500, 'window': 10, 'min_count': 10, 'workers': 10, 'dm': 1, 'negative': 5, 'epochs': 200, 'dbow_words': 1}
+    # section2vec_model = doc2vec_embedding(iter_unit='section_manual',
+    #                                       parameters=parameters_section_manual,
+    #                                       train=False)
     
-    parameters_paragraph = {'vector_size': 200,
-                            'window': 10,
-                            'min_count': 30,
-                            'workers': 10,
-                            'dm': 1,
-                            'negative': 5,
-                            'epochs': 200,
-                            'dbow_words': 1}
-    paragraph2vec_model = doc2vec_embedding(iter_unit='paragraph',
-                                            parameters=parameters_paragraph,
-                                            train=False)
+    # parameters_paragraph = {'vector_size': 200, 'window': 10, 'min_count': 30, 'workers': 10, 'dm': 1, 'negative': 5, 'epochs': 200, 'dbow_words': 1}
+    # paragraph2vec_model = doc2vec_embedding(iter_unit='paragraph',
+    #                                         parameters=parameters_paragraph,
+    #                                         train=False)
 
-    paragraph_pairing(section2vec_model=section2vec_model,
-                      paragraph2vec_model=paragraph2vec_model,
-                      topn=10)
+    # paragraph_pairing(section2vec_model=section2vec_model,
+    #                   paragraph2vec_model=paragraph2vec_model,
+    #                   topn=10)
 
     provision_info = 'Qatar_Qatar_2014_06_05'
     export_paired_result(provision_info=provision_info, min_pairing_score=0.8)

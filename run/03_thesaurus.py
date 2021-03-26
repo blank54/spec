@@ -35,9 +35,9 @@ def word2vec_embedding(iter_unit, train):
         'ns_exponent': 0.75,
     }
 
-    fdir_model = os.path.join(cfg['root'], cfg['fdir_model'])
+    fdir_model = os.path.join(cfg['root'], cfg['fdir_w2v_model'])
     fname_w2v_model = '{}_ngram_{}.pk'.format(iter_unit, utils.parameters2fname(parameters))
-    fpath_w2v_model = os.path.join(fdir_model, 'w2v', fname_w2v_model)
+    fpath_w2v_model = os.path.join(fdir_model, fname_w2v_model)
 
     _start = time()
 
@@ -76,7 +76,7 @@ def evaluate_w2v_model(w2v_model):
 ## Word Flows
 def calculate_word_flow(min_similarity, do, **kwargs):
     fname_word_flows = 'word_flows_{}.pk'.format(min_similarity)
-    fdir_word_flows = os.path.join(cfg['root'], cfg['fdir_model'], 'thesaurus/')
+    fdir_word_flows = os.path.join(cfg['root'], cfg['fdir_word_map'])
     fpath_word_flows = os.path.join(fdir_word_flows, fname_word_flows)
 
     if do:
@@ -108,7 +108,7 @@ def visualize_word_flow(word_flows):
 ## Pivot Term Determination
 def get_mapping_rules(do, **kwargs):
     fname_rules = 'word_mapping_rules.pk'
-    fdir_rules = os.path.join(cfg['root'], cfg['fdir_model'], 'thesaurus/')
+    fdir_rules = os.path.join(cfg['root'], cfg['fdir_word_map'])
     fpath_rules = os.path.join(fdir_rules, fname_rules)
 
     if do:
