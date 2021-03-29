@@ -23,18 +23,7 @@ visualizer = Visualizer()
 
 ## Word2Vec Embedding
 def word2vec_embedding(iter_unit, train):
-    parameters = {
-        'size': 200,
-        'window': 10,
-        'iter': 200,
-        'min_count': 10,
-        'workers': 4,
-        'sg': 1,
-        'hs': 1,
-        'negative': 5,
-        'ns_exponent': 0.75,
-    }
-
+    parameters = {'size': 200, 'window': 10, 'iter': 200, 'min_count': 10, 'workers': 4, 'sg': 1, 'hs': 1, 'negative': 5, 'ns_exponent': 0.75}
     fdir_model = os.path.join(cfg['root'], cfg['fdir_w2v_model'])
     fname_w2v_model = '{}_ngram_{}.pk'.format(iter_unit, utils.parameters2fname(parameters))
     fpath_w2v_model = os.path.join(fdir_model, fname_w2v_model)

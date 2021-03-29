@@ -14,7 +14,6 @@ import pickle as pk
 from time import time
 from tqdm import tqdm
 from collections import defaultdict, Counter
-from inflection import singularize
 
 import nltk
 from nltk.stem.lancaster import LancasterStemmer
