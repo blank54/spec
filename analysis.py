@@ -106,7 +106,9 @@ class Utils:
             precision = corr/max(pred, 1)
             recall = corr/max(real, 1)
             f1_list.append(self.f1_score(precision, recall))
-        return np.mean(f1_list).round(3)
+
+        f1_average = np.mean(f1_list).round(3)
+        return f1_list, f1_average
 
 
 class IO:

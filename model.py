@@ -78,7 +78,8 @@ class NER_Model:
         self.model = ''
 
         self.confusion_matrix = ''
-        self.f1_score = ''
+        self.f1_score_list = ''
+        self.f1_score_average = ''
 
     def initialize(self, **kwargs):
         if 'ner_corpus' in kwargs.keys():
@@ -177,7 +178,7 @@ class NER_Model:
             pred_labels.append(labels)
         return pred_labels
 
-    def __confusion_matrix(self):
+    def __get_confusion_matrix(self):
         matrix_size = len(self.ner_labels)-2
         matrix = np.zeros((matrix_size+1, matrix_size+1), dtype='int64')
 
@@ -196,15 +197,18 @@ class NER_Model:
         matrix[matrix_size, matrix_size] = sum(matrix[matrix_size, 0:matrix_size])
         self.confusion_matrix = matrix
 
-    def __f1_score(self):
-        self.f1_score = utils.f1_score_from_matrix(self.confusion_matrix)
+    def __get_f1_score(self):
+        self.f1_score_list, self.f1_score_average = utils.f1_score_from_matrix(self.confusion_matrix)
 
     def evaluate(self):
-        self.__confusion_matrix()
-        self.__f1_score()
+        self.__get_confusion_matrix()
+        self.__get_f1_score()
 
-        print('-----------------------------------')
-        print('Confusion Matrix:')
+        print('|--------------------------------------------------')
+        print('|Confusion Matrix:')
         print(self.confusion_matrix)
-        print('-----------------------------------')
-        print('F1 Score: {:.03f}'.format(self.f1_score))
+        print('|--------------------------------------------------')
+        print('|F1 Score: {:.03f}'.format(self.f1_score_average))
+        print('|--------------------------------------------------')
+        for category, f1_score in zip(self.ner_labels, self.f1_score_list):
+            print('|    [{}]: {:.03f}'.format(category, f1_score))

@@ -25,7 +25,7 @@ def get_parameters():
         'dense_activation': 'relu',
         'test_size': 0.3,
         'batch_size': 32,
-        'epochs': 200,
+        'epochs': 1,
         'validation_split': 0.1,
     }
 

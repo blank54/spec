@@ -111,6 +111,13 @@ class NER_Labels:
     def __len__(self):
         return len(self.label_list)
 
+    def __iter__(self):
+        for label in self.label2id.keys():
+            if label == '__PAD__' or label == '__UNK__':
+                continue
+            else:
+                yield label
+
 
 class NER_Corpus:
     def __init__(self, fpath, docs, ner_labels, weighted_labels, word2id, id2word, 
