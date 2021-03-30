@@ -20,6 +20,7 @@ from nltk.stem.lancaster import LancasterStemmer
 from nltk.stem import WordNetLemmatizer
 
 from sklearn.metrics.pairwise import cosine_similarity
+from keras.utils import to_categorical
 
 import networkx as nx
 import matplotlib
@@ -32,7 +33,7 @@ with open('/data/blank54/workspace/project/spec/spec.cfg', 'r') as f:
     cfg = Config(f)
 
 sys.path.append(cfg['root'])
-from object import *
+from object import Section, Paragraph, LabeledSentence, NER_Labels, NER_Corpus
 
 
 class Utils:
@@ -87,6 +88,25 @@ class Utils:
 
     def accuracy(self, tp, tn, fp, fn):
         return (tp+tn)/(tp+tn+fp+fn)
+
+    def f1_score(self, p, r):
+        if p != 0 or r != 0:
+            return (2*p*r)/(p+r)
+        else:
+            return 0
+
+    def f1_score_from_matrix(self, matrix, round=3):
+        f1_list = []
+        matrix_size = len(matrix)
+        for i in range(matrix_size):
+            corr = matrix[i, i]
+            pred = matrix[matrix_size-1, i]
+            real = matrix[i, matrix_size-1]
+
+            precision = corr/max(pred, 1)
+            recall = corr/max(real, 1)
+            f1_list.append(self.f1_score(precision, recall))
+        return np.mean(f1_list).round(3)
 
 
 class IO:
@@ -194,17 +214,6 @@ class Read(IO):
 
         with open(fpath, 'rb') as f:
             return pk.load(f)
-
-    def ner_model(self, fname_model, ner_corpus, parameters, **kwargs):
-        fdir = kwargs.get('fdir', os.path.join(cfg['root'], cfg['fdir_ner_model']))
-
-        ner_model = NER_Model(fdir=fdir, fname=fname_model)
-        ner_model.initialize(ner_corpus=ner_corpus, parameters=parameters)
-        ner_model.model.load_weights(ner_model.fpath)
-
-        with open(ner_model.fpath_dataset, 'rb') as f:
-            ner_model.dataset = pk.load(f)
-        return ner_model
 
 
 class Write(IO):
