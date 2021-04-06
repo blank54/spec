@@ -3,7 +3,12 @@
 
 # Configuration
 import os
+import numpy as np
+from tqdm import tqdm
+from collections import defaultdict
 from sklearn.model_selection import train_test_split
+
+from keras.utils import to_categorical
 
 from config import Config
 with open('/data/blank54/workspace/project/spec/spec.cfg', 'r') as f:
@@ -139,14 +144,59 @@ class NER_Corpus:
         self.X_words_pad = X_words_pad
         self.Y_labels_pad = Y_labels_pad
 
+        self.embedding_model = ''
         self.X_embedded = ''
         self.Y_embedded = ''
 
     def __len__(self):
         return len(self.X_words)
 
+    def word_embedding(self, embedding_model):
+        self.embedding_model = embedding_model
+        self.feature_size = self.embedding_model.feature_size
+        X_embedded = np.zeros((self.__len__(), self.max_sent_len, self.feature_size))
+        Y_embedded = np.zeros((self.__len__(), self.max_sent_len, len(self.ner_labels)))
+        
+        with tqdm(total=self.__len__()*self.max_sent_len) as pbar:
+            for i in range(self.__len__()):
+                for j, _id in enumerate(self.X_words_pad[i]):
+                    for k in range(self.feature_size):
+                        word = self.id2word[_id]
+                        X_embedded[i, j, k] = self.embedding_model.word_vector[word][k]
+
+                    Y_embedded[i] = to_categorical(self.Y_labels_pad[i], num_classes=(len(self.ner_labels)))
+                    pbar.update(1)
+
+        self.X_embedded = X_embedded
+        self.Y_embedded = Y_embedded
+
+        print('Word Embedding of NER Corpus: {:,} sentences'.format(len(self.X_embedded)))
+
 
 class NER_Dataset:
     def __init__(self, X, Y, test_size):
         self.test_size = test_size
         self.X_train, self.X_test, self.Y_train, self.Y_test = train_test_split(X, Y, test_size=self.test_size)
+
+
+class NER_Result:
+    def __init__(self, input_sent, pred_labels):
+        self.sent = input_sent
+        self.pred = pred_labels
+        self.result = self.__assign_labels()
+
+    def __assign_labels(self):
+        result = defaultdict(list)
+        for (word, label) in zip(self.sent, self.pred):
+            result[label].append(word)
+        return result
+
+    def __iter__(self):
+        for label in self.result:
+            yield self.result[label]
+
+    def __str__(self):
+        output_sent = []
+        for (word, label) in zip(self.sent, self.pred):
+            output_sent.append('{}/{}'.format(word, label))
+        return ' '.join(output_sent)

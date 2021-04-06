@@ -20,7 +20,7 @@ from nltk.stem.lancaster import LancasterStemmer
 from nltk.stem import WordNetLemmatizer
 
 from sklearn.metrics.pairwise import cosine_similarity
-from keras.utils import to_categorical
+from keras.preprocessing.sequence import pad_sequences
 
 import networkx as nx
 import matplotlib
@@ -135,12 +135,6 @@ class Read(IO):
             with open(fpath, 'rb') as f:
                 return pk.load(f)
 
-    def word2vec(self, fname):
-        fdir = os.path.join(cfg['root'], cfg['fdir_model'], 'w2v/')
-        fpath = os.path.join(fdir, fname)
-        with open(fpath, 'rb') as f:
-            return pk.load(f)
-
     def word_map(self, option):
         fpath = os.path.join(self.fdir_thesaurus, '{}.txt'.format(option))
         word_map = defaultdict(str)
@@ -240,9 +234,7 @@ class BuildCorpus(IO):
             else:
                 continue
 
-        return Section(tag=tag,
-                       text='  '.join(sents),
-                       sents=sents)
+        return Section(tag=tag, text='  '.join(sents), sents=sents)
 
 
     def section2paragraph(self, section_text):
@@ -425,55 +417,6 @@ class Preprocessor:
                 continue
 
         return sent_with_ngram
-
-
-class Embedding:
-    def update_word2vec(self, fname, update, **kwargs):
-        fdir = os.path.join(cfg['root'], cfg['fdir_w2v_model'])
-        fname_updated = 'w2v_model_updated.pk'
-        fpath_updated = os.path.join(fdir, fname_updated)
-
-        _start = time()
-        if update:
-            docs = kwargs.get('docs')
-            w2v_model = Read().word2vec(fname=fname)
-            w2v_model.update(new_docs=docs)
-
-            Write().object(obj=w2v_model, fpath=fpath_updated)
-        else:
-            w2v_model = Read().word2vec(fname=fname_updated)
-
-        feature_size = w2v_model.model.wv.vector_size
-        word_vector = {w: w2v_model.model.wv[w] for w in w2v_model.model.wv.vocab.keys()}
-        word_vector['__PAD__'] = np.zeros(feature_size)
-        word_vector['__UNK__'] = np.zeros(feature_size)
-        del w2v_model
-        _end = time()
-
-        print('Update Word2Vec Model: {:,} words ({:,.02f}) minutes'.format(len(word_vector), (_end-_start)/60))
-        return feature_size, word_vector
-
-    def ner_word_embedding(self, ner_corpus, feature_size, word_vector):
-        X_embedded = np.zeros((len(ner_corpus), ner_corpus.max_sent_len, feature_size))
-        Y_embedded = np.zeros((len(ner_corpus), ner_corpus.max_sent_len, len(ner_corpus.ner_labels)))
-        
-        with tqdm(total=len(ner_corpus)*ner_corpus.max_sent_len) as pbar:
-            for i in range(len(ner_corpus)):
-                for j, _id in enumerate(ner_corpus.X_words_pad[i]):
-                    for k in range(feature_size):
-                        word = ner_corpus.id2word[_id]
-                        X_embedded[i, j, k] = word_vector[word][k]
-
-                    Y_embedded[i] = to_categorical(ner_corpus.Y_labels_pad[i], num_classes=(len(ner_corpus.ner_labels)))
-                    pbar.update(1)
-
-        ner_corpus.feature_size = feature_size
-        ner_corpus.X_embedded = X_embedded
-        ner_corpus.Y_embedded = Y_embedded
-
-        Write().object(obj=ner_corpus, fpath=ner_corpus.fpath)
-        print('Word Embedding of NER Corpus: {:,} sentences'.format(len(X_embedded)))
-        return ner_corpus
 
 
 class Visualizer:

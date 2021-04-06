@@ -12,8 +12,10 @@ with open('/data/blank54/workspace/project/spec/spec.cfg', 'r') as f:
     cfg = Config(f)
 
 sys.path.append(cfg['root'])
-from analysis import *
+from analysis import BuildCorpus, Write, Utils
+buildcorpus = BuildCorpus()
 write = Write()
+utils = Utils()
 
 
 def build_corpus_section():
@@ -25,9 +27,9 @@ def build_corpus_section():
         for fname in flist:
             fpath = os.path.join(fdir_data, fname)
             with open(fpath, 'r', encoding='utf-8') as f:
-                tag = Utils().parse_fname(fpath=fpath, iter_unit='section_manual')
+                tag = utils.parse_fname(fpath=fpath, iter_unit='section_manual')
                 section_text = re.sub('\n+\n', '\n\n', f.read().replace('\ufeff', ''))
-                s = BuildCorpus().section(tag=tag, section_text=section_text)
+                s = buildcorpus.section(tag=tag, section_text=section_text)
 
             if s.text:
                 fname_corpus = '{}.pk'.format(s.tag)
@@ -51,7 +53,7 @@ def build_corpus_section2paragraph():
             fpath_data = os.path.join(fdir_data, fname_data)
             with open(fpath_data, 'r', encoding='utf-8') as f:
                 section_text = re.sub('\n+\n', '\n\n', f.read().replace('\ufeff', ''))
-                for p in BuildCorpus().section2paragraph(section_text=section_text):
+                for p in buildcorpus.section2paragraph(section_text=section_text):
                     if p.text:
                         fname_corpus = '{}.pk'.format(p.tag)
                         fpath_corpus = os.path.join(fdir_corpus, fname_corpus)

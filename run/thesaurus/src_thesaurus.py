@@ -14,7 +14,8 @@ with open('/data/blank54/workspace/project/spec/spec.cfg', 'r') as f:
     cfg = Config(f)
 
 sys.path.append(cfg['root'])
-from analysis import *
+from analysis import Read, Write, Utils, Visualizer
+from model import Word2VecModel
 read = Read()
 write = Write()
 utils = Utils()
@@ -26,7 +27,7 @@ def word2vec_embedding(iter_unit, train):
     parameters = {'size': 200, 'window': 10, 'iter': 200, 'min_count': 10, 'workers': 4, 'sg': 1, 'hs': 1, 'negative': 5, 'ns_exponent': 0.75}
     fdir_model = os.path.join(cfg['root'], cfg['fdir_w2v_model'])
     fname_w2v_model = '{}_ngram_{}.pk'.format(iter_unit, utils.parameters2fname(parameters))
-    fpath_w2v_model = os.path.join(fdir_model, fname_w2v_model)
+    
 
     _start = time()
 
@@ -43,12 +44,13 @@ def word2vec_embedding(iter_unit, train):
             negative=parameters.get('negative'),
             ns_exponent=parameters.get('ns_exponent'),
         )
-        w2v_model = Word2VecModel(docs=docs, model=model, parameters=parameters)
-        w2v_model.train()
+        w2v_model = Word2VecModel(model=model, parameters=parameters)
+        w2v_model.train(docs=docs)
+
+        fpath_w2v_model = os.path.join(fdir_model, fname_w2v_model)
         write.object(obj=w2v_model, fpath=fpath_w2v_model)
     else:
-        with open(fpath_w2v_model, 'rb') as f:
-            w2v_model = pk.load(f)
+        w2v_model = read.word2vec(fname=fname_w2v_model)
 
     _end = time()
     print('Training Word2Vec Model [{}]: {:,.02f} minutes'.format(iter_unit, (_end-_start)/60))
@@ -138,8 +140,8 @@ if __name__ == '__main__':
     w2v_model = word2vec_embedding(iter_unit='paragraph', train=True)
     # evaluate_w2v_model(w2v_model)
     
-    word_flows = calculate_word_flow(min_similarity=0.7, do=True, w2v_model=w2v_model)
+    # word_flows = calculate_word_flow(min_similarity=0.7, do=True, w2v_model=w2v_model)
     # visualize_word_flow(word_flows)
 
-    word_mapping_rules = get_mapping_rules(do=True, word_flows=word_flows)
+    # word_mapping_rules = get_mapping_rules(do=True, word_flows=word_flows)
     # visualize_word_map(word_mapping_rules)

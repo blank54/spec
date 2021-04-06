@@ -18,27 +18,40 @@ with open('/data/blank54/workspace/project/spec/spec.cfg', 'r') as f:
     cfg = Config(f)
 
 sys.path.append(cfg['root'])
-from object import NER_Dataset
+from object import NER_Dataset, NER_Result
 from analysis import Utils
 utils = Utils()
 
 
 class Word2VecModel:
-    def __init__(self, docs, model, parameters):
-        self.docs = docs
+    def __init__(self, model, parameters):
+        self.docs = ''
         self.model = model
         self.parameters = parameters
 
-    def train(self, **kwargs):
-        self.model.build_vocab(sentences=self.docs)
-        self.model.train(sentences=self.docs,
+        self.feature_size = self.model.wv.vector_size
+        self.word_vector = ''
+
+    def __len__(self):
+        return len(self.word_vector)
+
+    def train(self, docs, update=False):
+        if update:
+            self.model.min_count = 0
+        else:
+            pass
+
+        self.model.build_vocab(sentences=docs, update=update)
+        self.model.train(sentences=docs,
                          total_examples=self.model.corpus_count,
                          epochs=self.model.epochs)
+        self.word_vector = self.__get_word_vector()
 
-    def update(self, new_docs, min_count=0):
-        self.model.min_count = min_count
-        self.model.build_vocab(sentences=new_docs, update=True)
-        self.model.train(sentences=new_docs, total_examples=self.model.corpus_count, epochs=self.model.iter)
+    def __get_word_vector(self):
+        word_vector = {w: self.model.wv[w] for w in self.model.wv.vocab.keys()}
+        word_vector['__PAD__'] = np.zeros(self.feature_size)
+        word_vector['__UNK__'] = np.zeros(self.feature_size)
+        return word_vector
 
 
 class Doc2VecModel:
@@ -62,6 +75,8 @@ class NER_Model:
 
         self.max_sent_len = ''
         self.feature_size = ''
+        self.embedding_model = ''
+
         self.ner_labels = {}
         self.word2id = {}
         self.id2word = {}
@@ -86,6 +101,7 @@ class NER_Model:
             ner_corpus = kwargs.get('ner_corpus', '')
             self.max_sent_len = ner_corpus.max_sent_len
             self.feature_size = ner_corpus.feature_size
+            self.embedding_model = ner_corpus.embedding_model
             self.ner_labels = ner_corpus.ner_labels
             self.word2id = ner_corpus.word2id
             self.id2word = ner_corpus.id2word
@@ -212,3 +228,22 @@ class NER_Model:
         print('|--------------------------------------------------')
         for category, f1_score in zip(self.ner_labels, self.f1_score_list):
             print('|    [{}]: {:.03f}'.format(category, f1_score))
+
+    def predict(self, sent):
+        sent_by_id = []
+        for w in [w.lower() for w in sent]:
+            if w in self.word2id.keys():
+                sent_by_id.append(self.word2id[w])
+            else:
+                sent_by_id.append(self.word2id['__UNK__'])
+
+        sent_pad = pad_sequences(maxlen=self.max_sent_len, sequences=[sent_by_id], padding='post', value=self.word2id['__PAD__'])
+        X_input = np.zeros((1, self.max_sent_len, self.feature_size), dtype=list)
+        for j, w_id in enumerate(sent_pad[0]):
+            for k in range(self.feature_size):
+                word = self.id2word[w_id]
+                X_input[0, j, k] = self.embedding_model.word_vector[word][k]
+
+        prediction = self.model.predict(X_input)
+        pred_labels = self.__pred2labels(sents=sent_pad, prediction=prediction)[0]
+        return NER_Result(input_sent=sent, pred_labels=pred_labels)
