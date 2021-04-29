@@ -139,3 +139,4 @@ dmypy.json
 *.csv
 *.h5
 tmp*.py
+model/bert/pretrained/

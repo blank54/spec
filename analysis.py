@@ -4,7 +4,8 @@
 # Configuration
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = str(1) #Do not print INFO
-
+os.environ['CUDA_DEVICE_ORDER'] = 'PCI_BUS_ID'
+os.environ['CUDA_VISIBLE_DEVICES'] = str(2)
 
 import re
 import sys
@@ -26,6 +27,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 from keras.preprocessing.sequence import pad_sequences
 
 from keras_bert import Tokenizer
+from keras_bert import load_trained_model_from_checkpoint
 
 import networkx as nx
 import matplotlib
@@ -216,6 +218,20 @@ class Read(IO):
         with open(fpath, 'rb') as f:
             return pk.load(f)
 
+    def bert_pretrained(self, bert_dist, SEQ_LEN):
+        fpath_pretrained_bert = os.path.join(cfg['root'], cfg['fdir_bert_pretrained'], bert_dist)
+        fpath_bert_config = os.path.join(fpath_pretrained_bert, 'bert_config.json')
+        fpath_bert_checkpoint = os.path.join(fpath_pretrained_bert, 'bert_model.ckpt')
+
+        layer_num = 12
+        model = load_trained_model_from_checkpoint(
+            config_file=fpath_bert_config,
+            checkpoint_file=fpath_bert_checkpoint,
+            training=True,
+            trainable=True,
+            seq_len=SEQ_LEN,
+            )
+        return model
 
 class Write(IO):
     def makedir(self, path):
