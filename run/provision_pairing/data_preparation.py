@@ -28,9 +28,9 @@ def prepare_pairs(TARGET_TAG, REFER_TAG):
     data = defaultdict(list)
     for target_doc, refer_doc in itertools.product(target_docs, refer_docs):
         data['left_tag'].append(target_doc.tag)
-        data['left_text'].append(target_doc.text)
+        data['left_text'].append(target_doc.text.lower())
         data['right_tag'].append(refer_doc.tag)
-        data['right_text'].append(refer_doc.text)
+        data['right_text'].append(refer_doc.text.lower())
         data['label'].append(randrange(0,5,1))
 
     return data
@@ -38,13 +38,15 @@ def prepare_pairs(TARGET_TAG, REFER_TAG):
 def write_data_as_xlsx(data):
     data_df = pd.DataFrame(data)
     fname = 'L-{}_R-{}.xlsx'.format(TARGET_TAG, REFER_TAG)
-    fdir = os.path.join(cfg['root'], cfg['fdir_data_provision_pair_labeled'])
+    fdir = os.path.join(cfg['root'], cfg['fdir_data_provision_pair_raw'])
     fpath = os.path.join(fdir, fname)
 
     with pd.ExcelWriter(path=fpath) as writer:
         write.makedir(path=fpath)
         data_df.to_excel(excel_writer=writer, index=False)
-    print('Write data at "../{}" as "{}"'.format(cfg['fdir_data_provision_pair_labeled'], fname))
+    print('Data Preparation for ProvisionPairing')
+    print('    | fdir : ../{}'.format(cfg['fdir_data_provision_pair_raw']))
+    print('    | fname: {}'.format(fname))
 
 
 if __name__ == '__main__':
