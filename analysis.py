@@ -3,6 +3,9 @@
 
 # Configuration
 import os
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = str(1) #Do not print INFO
+
+
 import re
 import sys
 import csv
@@ -21,6 +24,8 @@ from nltk.stem import WordNetLemmatizer
 
 from sklearn.metrics.pairwise import cosine_similarity
 from keras.preprocessing.sequence import pad_sequences
+
+from keras_bert import Tokenizer
 
 import networkx as nx
 import matplotlib
@@ -417,6 +422,28 @@ class Preprocessor:
                 continue
 
         return sent_with_ngram
+
+
+class BERT_Tokenizer(Tokenizer):
+    def _tokenize(self, text):
+        if not self._cased:
+            text = text.lower()
+            
+        spaced = ''
+        for ch in text:
+            if self._is_punctuation(ch) or self._is_cjk_character(ch):
+                spaced += ' ' + ch + ' '
+            elif self._is_space(ch):
+                spaced += ' '
+            elif ord(ch) == 0 or ord(ch) == 0xfffd or self._is_control(ch):
+                continue
+            else:
+                spaced += ch
+                
+        tokens = []
+        for word in spaced.strip().split():
+            tokens += self._word_piece_tokenize(word)
+        return tokens
 
 
 class Visualizer:
