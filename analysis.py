@@ -12,6 +12,7 @@ import sys
 import csv
 import copy
 import json
+import codecs
 import operator
 import itertools
 import numpy as np
@@ -27,6 +28,9 @@ from nltk.stem import WordNetLemmatizer
 from sklearn.metrics.pairwise import cosine_similarity
 from keras.preprocessing.sequence import pad_sequences
 
+from keras import Model
+from keras.optimizers import Adam
+from keras.layers import Dense
 from keras_bert import Tokenizer
 from keras_bert import load_trained_model_from_checkpoint
 
@@ -219,20 +223,6 @@ class Read(IO):
         with open(fpath, 'rb') as f:
             return pk.load(f)
 
-    def bert_pretrained(self, bert_dist, SEQ_LEN):
-        fpath_pretrained_bert = os.path.join(cfg['root'], cfg['fdir_bert_pretrained'], bert_dist)
-        fpath_bert_config = os.path.join(fpath_pretrained_bert, 'bert_config.json')
-        fpath_bert_checkpoint = os.path.join(fpath_pretrained_bert, 'bert_model.ckpt')
-
-        layer_num = 12
-        model = load_trained_model_from_checkpoint(
-            config_file=fpath_bert_config,
-            checkpoint_file=fpath_bert_checkpoint,
-            training=True,
-            trainable=True,
-            seq_len=SEQ_LEN,
-            )
-        return model
 
 class Write(IO):
     def makedir(self, path):
@@ -466,6 +456,132 @@ class BERT_Tokenizer(Tokenizer):
         for word in spaced.strip().split():
             tokens += self._word_piece_tokenize(word)
         return tokens
+
+
+class BERT:
+    def __init__(self, fdir_pretrained, SEQ_LEN):
+        self.fdir_pretrained = fdir_pretrained
+        self.fpath_config = os.path.join(self.fdir_pretrained, 'bert_config.json')
+        self.fpath_checkpoint = os.path.join(self.fdir_pretrained, 'bert_model.ckpt')
+
+        self.SEQ_LEN = SEQ_LEN # maximum length of input sentence
+
+        self.LEFT_COLUMN = 'left_text'
+        self.RIGHT_COLUMN = 'right_text'
+        self.LABEL_COLUMN = 'label'
+
+    def build_vocab(self):
+        fpath_vocab = os.path.join(self.fdir_pretrained, 'vocab.txt')
+
+        token_dict = {}
+        with codecs.open(fpath_vocab, 'r', encoding='utf-8') as reader:
+            for line in reader:
+                token = line.strip()
+                if '_' in token:
+                    token = token.replace('_', '')
+                    token = '##' + token
+                token_dict[token] = len(token_dict)
+
+        init_len = len(token_dict)
+
+        # for doc in read.docs(iter_unit='paragraph'):
+        #     for domain_token in [t.lower() for t in doc.token]:
+        #         if domain_token not in token_dict.keys():
+        #             token = '##' + domain_token
+        #             token_dict[token] = len(token_dict)
+        #         else:
+        #             continue
+        updated_len = len(token_dict)
+        
+        print('Build BERT Vocabs')
+        print('    | Initial: {}'.format(init_len))
+        print('    | Updated: {}'.format(updated_len))
+        reverse_dict = {i: t for t, i in token_dict.items()}
+
+        return token_dict, reverse_dict
+
+    def data2input(self, token_dict, data, option):
+        tokenizer = BERT_Tokenizer(token_dict)
+        
+        data[self.LEFT_COLUMN] = data[self.LEFT_COLUMN].astype(str)
+        data[self.RIGHT_COLUMN] = data[self.RIGHT_COLUMN].astype(str)
+
+        indices, targets = [], []
+        for idx in tqdm(range(len(data))):
+            ids, segments = tokenizer.encode(data[self.LEFT_COLUMN].iloc[idx], data[self.RIGHT_COLUMN].iloc[idx], max_len=self.SEQ_LEN)
+            indices.append(ids)
+
+            if option=='train' or option=='test':
+                target = [0]*5 #
+                target[data[self.LABEL_COLUMN].iloc[idx]] = 1
+                targets.append(target)
+            else:
+                continue
+            
+        X = [np.array(indices), np.zeros_like(indices)]
+        if option=='train' or option=='test':
+            Y = np.array(targets)
+            return X, Y
+        elif option=='predict':
+            return X
+        else:
+            print('ERROR: Wrong option!!!')
+            return None
+
+    def load_model(self):
+        layer_num = 12
+        model = load_trained_model_from_checkpoint(
+            config_file=self.fpath_config,
+            checkpoint_file=self.fpath_checkpoint,
+            training=True,
+            trainable=True,
+            seq_len=self.SEQ_LEN,
+            )
+
+        return model
+
+    def save_model(self, model, fpath):
+        model.save_weights(fpath)
+
+        fdir, fname = os.path.split(fpath)
+        print('Trained BERT-based ProvisionPairing Model:')
+        print('    | fdir : {}'.format(fdir))
+        print('    | fname: {}'.format(fname))
+
+    def fine_tuning(self, model):
+        inputs = model.inputs[:2]
+        dense = model.layers[-3].output
+        outputs = Dense(
+            units=5,
+            activation='sigmoid',
+            name='ProvisionPairLabel'
+        )(dense)
+
+        tuned_model = Model(inputs=inputs, outputs=outputs)
+        tuned_model.compile(
+            optimizer=Adam(learning_rate=0.00001),
+            loss='binary_crossentropy',
+            metrics=['accuracy']
+        )
+
+        return tuned_model
+
+    def train(data, model, parameters):
+        train_X, train_Y, test_X, test_Y = data[0], data[1], data[2], data[3]
+        epochs = parameters.get('epochs', 1)
+        batch_size = parameters.get('batch_size', 32)
+        verbose = parameters.get('verbose', 1)
+        shuffle = parameters.get('shuffle', 1)
+
+        history = model.fit(train_X, train_Y,
+                        epochs=epochs,
+                        batch_size=batch_size,
+                        verbose=verbose,
+                        validation_data=(test_X, test_Y),
+                        shuffle=shuffle)
+
+        return model
+
 
 
 class Visualizer:
