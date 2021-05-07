@@ -16,7 +16,9 @@ from tqdm import tqdm
 from sklearn.model_selection import train_test_split
 
 import keras
-from keras import Input, Model, optimizers
+from keras import Input, Model
+from keras.optimizers import Adam
+from keras.layers import Dense
 
 from config import Config
 with open('/data/blank54/workspace/project/spec/spec.cfg', 'r') as f:
@@ -39,13 +41,13 @@ def build_vocab(fpath_vocab):
             token_dict[token] = len(token_dict)
     init_len = len(token_dict)
 
-    for doc in read.docs(iter_unit='paragraph'):
-        for domain_token in [t.lower() for t in doc.token]:
-            if domain_token not in token_dict.keys():
-                token = '##' + domain_token
-                token_dict[token] = len(token_dict)
-            else:
-                continue
+    # for doc in read.docs(iter_unit='paragraph'):
+    #     for domain_token in [t.lower() for t in doc.token]:
+    #         if domain_token not in token_dict.keys():
+    #             token = '##' + domain_token
+    #             token_dict[token] = len(token_dict)
+    #         else:
+    #             continue
     updated_len = len(token_dict)
     
     print('Build BERT Vocabs')
@@ -55,7 +57,8 @@ def build_vocab(fpath_vocab):
     return token_dict, reverse_dict
 
 def build_tokenizer(token_dict):
-    return BERT_Tokenizer(token_dict)
+    tokenizer = BERT_Tokenizer(token_dict)
+    return tokenizer
 
 def import_data(TARGET_TAG, REFER_TAG):
     fname = 'L-{}_R-{}.xlsx'.format(TARGET_TAG, REFER_TAG)
@@ -79,7 +82,10 @@ def data2input(data, option='train'):
     for idx in tqdm(range(len(data))):
         ids, segments = tokenizer.encode(data[LEFT_COLUMN].iloc[idx], data[RIGHT_COLUMN].iloc[idx], max_len=SEQ_LEN)
         indices.append(ids)
-        targets.append(data[LABEL_COLUMN].iloc[idx])
+
+        target = [0]*5 #
+        target[data[LABEL_COLUMN].iloc[idx]] = 1
+        targets.append(target)
         
     X = [np.array(indices), np.zeros_like(indices)]
     Y = np.array(targets)
@@ -93,7 +99,7 @@ def data2input(data, option='train'):
         return None
 
 def load_pretrained_model(show_summary):
-    global bert_dist, SEQ_LEN
+    global bert_dist, SEQ_LEN, tokenizer
 
     # fpath_pretrained_bert = os.path.join(cfg['root'], cfg['fdir_bert_pretrained'], bert_dist)
     # fpath_bert_config = os.path.join(fpath_pretrained_bert, 'bert_config.json')
@@ -103,6 +109,8 @@ def load_pretrained_model(show_summary):
     #     write.json(obj=config, fpath=fpath_bert_config)
 
     model = read.bert_pretrained(bert_dist=bert_dist, SEQ_LEN=SEQ_LEN)
+    print(type(model))
+    # model.resize_token_embeddings(len(tokenizer))
 
     if show_summary:
         model.summary()
@@ -116,16 +124,16 @@ def fine_tuning(model, show_summary):
 
     inputs = model.inputs[:2]
     dense = model.layers[-3].output
-    outputs = keras.layers.Dense(
+    outputs = Dense(
         units=5,
         activation='sigmoid',
         name='ProvisionPairLabel'
     )(dense)
 
-    bert_model = keras.models.Model(inputs=inputs, outputs=outputs)
+    bert_model = Model(inputs=inputs, outputs=outputs)
     bert_model.compile(
-        optimizer=keras.optimizers.Adam(learning_rate=0.00001),
-        loss='rmsprop',
+        optimizer=Adam(learning_rate=0.00001),
+        loss='binary_crossentropy',
         metrics=['accuracy']
     )
 
@@ -140,7 +148,7 @@ def fine_tuning(model, show_summary):
 def train_bert(model):
     global bert_dist, train_X, train_Y, test_X, test_Y
     history = model.fit(train_X, train_Y,
-                        epochs=2,
+                        epochs=100,
                         batch_size=16,
                         verbose=1,
                         validation_data=(test_X, test_Y),
@@ -175,6 +183,6 @@ if __name__ == '__main__':
     train_X, train_Y = data2input(data=train, option='train')
     test_X, test_Y = data2input(data=test, option='test')
 
-    model = load_pretrained_model(show_summary=False)
-    bert_model = fine_tuning(model=model, show_summary=False)
+    model = load_pretrained_model(show_summary=True)
+    bert_model = fine_tuning(model=model, show_summary=True)
     train_bert(model=bert_model)

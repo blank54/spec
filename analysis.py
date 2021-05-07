@@ -11,6 +11,7 @@ import re
 import sys
 import csv
 import copy
+import json
 import operator
 import itertools
 import numpy as np
@@ -126,7 +127,7 @@ class IO:
     fdir_ner_corpus = os.path.join(cfg['root'], cfg['fdir_ner_corpus'])
 
 
-class Read(IO):
+class Read(IO):        
     def docs(self, iter_unit):
         fdir = os.path.join(self.fdir_corpus, iter_unit)
         for fname in os.listdir(fdir):
@@ -244,6 +245,11 @@ class Write(IO):
         self.makedir(fpath)
         with open(fpath, 'wb') as f:
             pk.dump(obj, f)
+
+    def json(self, obj, fpath):
+        self.makedir(fpath)
+        with open(fpath, 'w', encoding='utf-8') as f:
+            json.dump(obj, f)
 
 
 class BuildCorpus(IO):
