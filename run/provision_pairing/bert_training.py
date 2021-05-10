@@ -73,7 +73,8 @@ if __name__ == '__main__':
         'epochs': 100,
         'batch_size': 32,
     }
-    trained_model = bert.train(data=data, model=model, parameters=parameters)    bert_model.summary()
+    trained_model = bert.train(data=data, model=finetuned_model, parameters=parameters)
+    bert_model.summary()
 
     ## Save BERT
     save_bert(model=bert_model)

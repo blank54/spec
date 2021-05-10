@@ -566,7 +566,7 @@ class BERT:
 
         return tuned_model
 
-    def train(data, model, parameters):
+    def train(self, data, model, parameters):
         train_X, train_Y, test_X, test_Y = data[0], data[1], data[2], data[3]
         epochs = parameters.get('epochs', 1)
         batch_size = parameters.get('batch_size', 32)
