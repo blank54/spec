@@ -75,7 +75,7 @@ def build_corpus_sentence():
     for section in sections:
         sents = section.text.split('  ')
         for idx, text in enumerate(sents):
-            tag = '{}_{:03d}'.format(section.tag, idx)
+            tag = '{}_{:03d}'.format(section.tag, idx).lower()
             fname = '{}.pk'.format(tag)
             fdir = os.path.join(cfg['root'], cfg['fdir_corpus_sentence'])
             fpath = os.path.join(fdir, fname)
@@ -91,4 +91,4 @@ def build_corpus_sentence():
 if __name__ == '__main__':
     # build_corpus_section()
     # build_corpus_section2paragraph()
-    # build_corpus_sentence()
+    build_corpus_sentence()
