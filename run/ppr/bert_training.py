@@ -16,7 +16,7 @@ with open('/data/blank54/workspace/project/spec/spec.cfg', 'r') as f:
     cfg = Config(f)
 
 sys.path.append(cfg['root'])
-from analysis import BERT
+from model import BERT
 
 
 def import_data(TARGET_TAG, REFER_TAG):
@@ -43,7 +43,9 @@ def prepare_data_for_training():
     return data
 
 def save_bert(model):
-    fname = 'bert.h5'
+    global bert_dist, epochs, batch_size
+
+    fname = 'ppr_{}_{}_{}.h5'.format(bert_dist, epochs, batch_size)
     fdir = os.path.join(cfg['root'], cfg['fdir_provision_pairing_bert'])
     fpath = os.path.join(fdir, fname)
     bert.save_model(model=model, fpath=fpath)
@@ -69,12 +71,14 @@ if __name__ == '__main__':
     pretrained_model = bert.load_model()
     finetuned_model = bert.fine_tuning(model=pretrained_model)
 
+    epochs = 3
+    batch_size = 32
     parameters = {
-        'epochs': 100,
-        'batch_size': 32,
+        'epochs': epochs,
+        'batch_size': batch_size,
     }
     trained_model = bert.train(data=data, model=finetuned_model, parameters=parameters)
-    bert_model.summary()
+    trained_model.summary()
 
     ## Save BERT
-    save_bert(model=bert_model)
+    save_bert(model=trained_model)

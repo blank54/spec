@@ -15,7 +15,7 @@ with open('/data/blank54/workspace/project/spec/spec.cfg', 'r') as f:
     cfg = Config(f)
 
 sys.path.append(cfg['root'])
-from analysis import BERT
+from model import BERT
 
 
 def import_data():
@@ -52,4 +52,4 @@ if __name__ == '__main__':
     bert_model = load_bert_weights(model=pretrained_model)
 
     ## Predict
-    bert_model.predict(data_X)
+    print(bert_model.predict(data_X))
