@@ -3,6 +3,9 @@
 
 # Configuration
 import os
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = str(1) #Do not print INFO
+
+import re
 import sys
 import pickle as pk
 from tqdm import tqdm
@@ -12,8 +15,10 @@ with open('/data/blank54/workspace/project/spec/spec.cfg', 'r') as f:
     cfg = Config(f)
 
 sys.path.append(cfg['root'])
-from analysis import BuildCorpus, Write, Utils
+from object import Sentence
+from analysis import BuildCorpus, Read, Write, Utils
 buildcorpus = BuildCorpus()
+read = Read()
 write = Write()
 utils = Utils()
 
@@ -65,7 +70,25 @@ def build_corpus_section2paragraph():
 
     print('Build Corpus (Paragraph): {:,}\n └ {}'.format(len(os.listdir(fdir_corpus)), fdir_corpus))
 
+def build_corpus_sentence():
+    sections = read.docs(iter_unit='section_manual')
+    for section in sections:
+        sents = section.text.split('  ')
+        for idx, text in enumerate(sents):
+            tag = '{}_{:03d}'.format(section.tag, idx)
+            fname = '{}.pk'.format(tag)
+            fdir = os.path.join(cfg['root'], cfg['fdir_corpus_sentence'])
+            fpath = os.path.join(fdir, fname)
+
+            sent = Sentence(tag=tag, text=text)
+            sent.fpath = fpath
+            with open(sent.fpath, 'wb') as f:
+                pk.dump(sent, f)
+
+    print('Build Corpus (Sentence): {:,}\n └ {}'.format(len(os.listdir(fdir)), fdir))
+
 
 if __name__ == '__main__':
-    build_corpus_section()
+    # build_corpus_section()
     # build_corpus_section2paragraph()
+    # build_corpus_sentence()

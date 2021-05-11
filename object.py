@@ -18,9 +18,6 @@ with open('/data/blank54/workspace/project/spec/spec.cfg', 'r') as f:
 class Doc:
     fpath = ''
 
-    tag = ''
-    text = ''
-
     token = ''
     stop = ''
     stem = ''
