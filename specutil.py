@@ -8,7 +8,8 @@ import os
 class SpecPath:
     root = '/data/blank54/workspace/project/spec/'
 
-    # ## Data
+    ## Data
+    data_for_ner_bert_labeling = os.path.join(root, 'data/sentence/data_for_ner_bert_labeling.json')
     # fdir_data_section_manual = os.path.join(root, 'data/section/manual/')
 
     # ## Provision Pairing

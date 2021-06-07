@@ -3,8 +3,11 @@
 
 # Configuration
 import nltk
+import json
 import pickle as pk
+import pandas as pd
 from tqdm import tqdm
+from collections import defaultdict
 import matplotlib.pyplot as plt
 
 import sys
@@ -23,7 +26,6 @@ def explore_data():
 
     plt.hist(data, bins=len(set(data)))
     plt.show()
-
 
 def develop_corpus():
     print('____________________________________________________________')
@@ -59,7 +61,16 @@ def develop_corpus():
     print('  | Saved at: "{}"'.format(specpath.corpus_sentence))
     print('____________________________________________________________')
 
+def export_data_for_labeling():
+    with open(specpath.corpus_sentence, 'rb') as f:
+        corpus = pk.load(f)
+
+    data = {sent.tag: sent.text for sent in corpus}
+    with open(specpath.data_for_ner_bert_labeling, 'w', encoding='utf-8') as f:
+        json.dump(data, f)
+
 
 if __name__ == '__main__':
     # explore_data()
-    develop_corpus()
+    # develop_corpus()
+    export_data_for_labeling()
