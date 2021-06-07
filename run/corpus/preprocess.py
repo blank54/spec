@@ -5,6 +5,7 @@
 import os
 import sys
 import itertools
+from tqdm import tqdm
 
 from config import Config
 with open('/data/blank54/workspace/project/spec/spec.cfg', 'r') as f:
@@ -13,7 +14,7 @@ with open('/data/blank54/workspace/project/spec/spec.cfg', 'r') as f:
 sys.path.append(cfg['root'])
 from analysis import *
 preprocessor = Preprocessor()
-ngram_parser = NgramParser()
+# ngram_parser = NgramParser()
 read = Read()
 write = Write()
 
@@ -78,8 +79,10 @@ def ngram_parsing(iter_unit, do):
 
 
 if __name__ == '__main__':
-    preprocess(iter_unit='section_manual', do=False)
-    ngram_parsing(iter_unit='section_manual', do=False)
+    # preprocess(iter_unit='section_manual', do=False)
+    # ngram_parsing(iter_unit='section_manual', do=False)
 
     # preprocess(iter_unit='paragraph', do=True)
     # ngram_parsing(iter_unit='paragraph', do=True)
+
+    preprocess(iter_unit='sentence', do=True)
