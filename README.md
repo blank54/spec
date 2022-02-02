@@ -8,7 +8,8 @@
   
 ## _**Publications**_
 ### Journal Papers
-- **Moon, S.**, Lee, G., and Chi, S.\* (2021). "Semantic Text-pairing for Relevant Provision Identification in Construction Specification Reviews." _Automation in Construction_, submitted on 12/23/2020. [Under Review]
+- **Moon, S.**, Lee, G., and Chi, S. (2022). "Automated system for construction specification review using natural language processing." _Advanced Engineering Informatics_, 51, 101495.
+- **Moon, S.**, Lee, G., and Chi, S. (2021). "Semantic text-pairing for relevant provision identification in construction specification reviews." _Automation in Construction_, 128, 103780.
 - **Moon, S.**, Lee, G., Chi, S.\*, and Oh, H. (2021). "Automated Construction Specification Review with Named Entity Recognition Using Natural Language Processing." _Journal of Construction Engineering and Management_, 147(1), 04020147.
 
 ### Conference Papers
